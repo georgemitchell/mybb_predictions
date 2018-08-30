@@ -1,0 +1,1351 @@
+<?php
+/**
+ * MyBB 1.8
+ * Copyright 2014 MyBB Group, All Rights Reserved
+ *
+ * Website: http://www.mybb.com
+ * License: http://www.mybb.com/about/license
+ *
+ */
+
+// Make sure we can't access this file directly from the browser.
+if(!defined('IN_MYBB'))
+{
+	die('This file cannot be accessed directly.');
+}
+
+// cache templates - this is important when it comes to performance
+// THIS_SCRIPT is defined by some of the MyBB scripts, including index.php
+if(defined('THIS_SCRIPT'))
+{
+    global $templatelist;
+
+    if(isset($templatelist))
+    {
+        $templatelist .= ',';
+    }
+
+	if(THIS_SCRIPT== 'index.php')
+	{
+		$templatelist .= 'predictions_index, predictions_predictionrow';
+	}
+	elseif(THIS_SCRIPT== 'showthread.php')
+	{
+		$templatelist .= 'predictions_post, predictions_predictionrow';
+	}
+}
+
+if(defined('IN_ADMINCP'))
+{
+	// Add our hello_settings() function to the setting management module to load language strings.
+	$plugins->add_hook('admin_config_settings_manage', 'predictions_settings');
+	$plugins->add_hook('admin_config_settings_change', 'predictions_settings');
+	$plugins->add_hook('admin_config_settings_start', 'predictions_settings');
+	// We could hook at 'admin_config_settings_begin' only for simplicity sake.
+}
+else
+{
+	// Add our hello_index() function to the index_start hook so when that hook is run our function is executed
+	$plugins->add_hook('index_start', 'predictions_index');
+
+	// Add our latest_game() function to the forumdisplay_start hook so it gets executed on the main forum page
+	$plugins->add_hook('forumdisplay_end', 'predictions_latest_game');
+
+	$plugins->add_hook('newthread_end', 'predictions_prediction_box');
+	$plugins->add_hook('newthread_do_newthread_end', 'predictions_prediction_thread');
+	$plugins->add_hook('showthread_start', 'predictions_thread_game');
+	$plugins->add_hook('showthread_end', 'predictions_ajax_action');
+	$plugins->add_hook('xmlhttp', 'predictions_ajax_action');
+
+	// Add our hello_new() function to the misc_start hook so our misc.php?action=hello inserts a new message into the created DB table.
+	$plugins->add_hook('misc_start', 'predictions_new');
+}
+
+function predictions_info()
+{
+	global $lang;
+	$lang->load('predictions');
+
+	/**
+	 * Array of information about the plugin.
+	 * name: The name of the plugin
+	 * description: Description of what the plugin does
+	 * website: The website the plugin is maintained at (Optional)
+	 * author: The name of the author of the plugin
+	 * authorsite: The URL to the website of the author (Optional)
+	 * version: The version number of the plugin
+	 * compatibility: A CSV list of MyBB versions supported. Ex, '121,123', '12*'. Wildcards supported.
+	 * codename: An unique code name to be used by updated from the official MyBB Mods community.
+	 */
+	return array(
+		'name'			=> 'Predictions',
+		'description'	=> $lang->predictions_desc,
+		'website'		=> 'https://github.com/georgemitchell/mybb_predictions',
+		'author'		=> 'A guy who spent a lot of time in Sweet Hall',
+		'authorsite'	=> 'https://georgeofallages.com',
+		'version'		=> '1.0',
+		'compatibility'	=> '18*',
+		'codename'		=> 'predictions'
+	);
+}
+
+/*
+ * _activate():
+ *    Called whenever a plugin is activated via the Admin CP. This should essentially make a plugin
+ *    'visible' by adding templates/template changes, language changes etc.
+*/
+function predictions_activate()
+{
+	global $db, $lang;
+	$lang->load('predictions');
+
+	$add_team = <<<ADD_TEAM
+	<form method="POST" action="predictions.php">
+		<input type="hidden" name="my_post_key" value="{\$mybb->post_code}" />
+		<input type="hidden" name="action" value="add_team" />
+		<div class="tborder">
+			<div class="thead">Add a team</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Team Name:</div>
+				<div class="formbit_field col-sm-10">
+					<input type="text" class="textbox" name="name" size="40" maxlength="128" value="" tabindex="1" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Logo:</div>
+				<div class="formbit_field col-sm-10">
+					<input type="text" class="textbox" name="logo" size="40" maxlength="256" value="" tabindex="2" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Hex Color:</div>
+				<div class="formbit_field col-sm-10">
+					<input type="text" class="textbox" name="color" size="8" maxlength="8" value="" tabindex="3" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<input type="submit" name="submit" class="button" value="{\$lang->predictions_add_team}" />
+			</div>
+		</div>
+	</form>
+ADD_TEAM;
+
+	$add_game = <<<ADD_GAME
+	<form method="POST" action="predictions.php">
+		<input type="hidden" name="my_post_key" value="{\$mybb->post_code}" />
+		<input type="hidden" name="action" value="add_game" />
+		<div class="tborder">
+			<div class="thead">Add a game</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Season:</div>
+				<div class="formbit_field col-sm-10">
+					<select class="selectbox" name="season" value="" tabindex="1">
+						<option value="2016">2016</option>
+						<option value="2017">2017</option>
+						<option value="2018" selected>2018</option>
+						<option value="2019">2019</option>
+						<option value="2020">2020</option>
+					</select>
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Away Team:</div>
+				<div class="formbit_field col-sm-10">
+					<select class="selectbox" name="season" value="" tabindex="1">
+						{\$teams}
+					</select>
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<input type="submit" name="submit" class="button" value="{\$lang->predictions_add_game}" />
+			</div>
+		</div>
+	</form>
+ADD_GAME;
+
+	$latest_game = <<<LATEST_GAME
+	<div id="latest_game">
+		<div id="away_team">
+			<div class="predictions_logo">
+				{\$row['away_logo']}
+			</div>
+			<div>
+				{\$row['away_team']}
+			</div>
+		</div>
+		<div id="away_team">
+			<div class="predictions_logo">
+				{\$row['away_logo']}
+			</div>
+			<div>
+				{\$row['away_team']}
+			</div>
+		</div>
+	</div>
+LATEST_GAME;
+
+	$thread_game = <<<THREAD_GAME
+	<div class="row">
+	<div class="col-md-4">
+		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
+			<div class="col-md-9">
+				<div class="row">
+					<div class="span12 text-center">
+						{\$game['away_name']}
+					</div>
+				</div>
+				<div class="row">
+					<div class="span12 text-center">
+						<img src="{\$game['away_logo']}" />
+					</div>
+				</div>
+				<div class="row">
+					<div class="span12 text-center">
+						Nickname
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3 text-center">
+				<span style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-1 text-center">
+		<div style="display: flex;justify-content:  center;align-items: center;">
+			<span  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">Vs.</span>
+		</div>
+	</div>
+	<div class="col-md-4">
+		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
+			<div class="col-md-3 text-center">
+				<span style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span>
+			</div>
+			<div class="col-md-9">
+				<div class="row">
+					<div class="span12 text-center">
+						{\$game['home_name']}
+					</div>
+				</div>
+				<div class="row">
+					<div class="span12 text-center">
+						<img src="{\$game['home_logo']}" />
+					</div>
+				</div>
+				<div class="row">
+					<div class="span12 text-center">
+						Nickname
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="row">
+			{\$predictions_stats_panel}
+			{\$predictions_predict_panel}
+		</div>
+		<div class="row">
+			<a href="javascript:predictions_toggle_panel();" class="button" id="predictions_toggle_panel_button"><span id="predictions_action_text">{\$predictions_action_text}</span></a>
+		</div>
+	</div>
+</div>
+{\$predictions_predict_script}
+THREAD_GAME;
+
+	$thread_game_stats = <<<THREAD_GAME_STATS
+	<div id="predictions_stats_panel">
+		<div class="row">
+			Took the Over:<br />
+			{$stats['over']['user']} ({$stats['over']['away']} - {$stats['over']['home']})
+		</div>
+		<div class="row">
+			Took the Under:<br />
+			{$stats['under']['user']} ({$stats['under']['away']} - {$stats['under']['home']})
+		</div>
+		<div class="row">
+			Red Hot:<br />
+			{$stats['red_hot']['user']} ({$stats['red_hot']['away']} - {$stats['red_hot']['home']})
+		</div>
+		<div class="row">
+			Shame! Shame! Shame!:<br />
+			{$stats['shame']['user']} ({$stats['shame']['away']} - {$stats['shame']['home']})
+		</div>
+	</div>
+THREAD_GAME_STATS;
+
+	$thread_game_form = <<<THREAD_GAME_FORM
+	<div id="predictions_predict_panel" style="display:none">
+		<form id="predictions_prefict_form">
+		<input type="hidden" id="csrf_token" name="csrf_token" value="{\$mybb->post_code}">
+		<input type="hidden" id="game_id" name="game_id" value="{\$game['game_id']}">
+		<input type="hidden" id="user_id" name="user_id" value="{\$mybb->user['uid']}">
+		<input type="hidden" id="prediction_id" name="prediction_id" value="{\$prediction_id}">
+		<div class="form-row">
+			<div class="form-group col-md-3">
+      			<label for="predictions_away_score">{\$game['away_team']}</label>
+      			<input type="email" class="form-control" id="predictions_away_score" name="predictions_away_score" required="true" placeholder="score">
+			</div>
+			<div class="form-group col-md-9">
+				<label for="predictions_away_nickname">&nbsp;</label>
+				<input type="text" class="form-control" id="predictions_away_nickname" name="predictions_away_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$predictions_existing_away_nickname}" tabindex="1" />
+			</div>
+		</div>
+		<div class="form-row">
+			<div class="form-group col-md-3">
+      			<label for="predictions_home_score">{\$game['home_team']}</label>
+      			<input type="email" class="form-control" id="predictions_home_score" name="predictions_home_score" placeholder="score">
+			</div>
+			<div class="form-group col-md-9">
+				<label for="predictions_home_nickname">&nbsp;</label>
+				<input type="text" class="form-control" id="predictions_home_nickname" name="predictions_home_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$predictions_existing_home_nickname}" tabindex="1" />
+			</div>
+		</div>
+		<div class="row text-center">
+			<a href="javascript:predictions_make_prediction();" class="button" id="predictions_predict_button"><span>{\$predictions_action_text}</span></a>
+		</div>
+		</form>
+	</div>
+THREAD_GAME_FORM;
+
+	$prediction_box = <<<PREDICTION_BOX
+	<div class="{\$bgcolor2} rowbit">
+
+	<div class="formbit_label col-sm-2 strong">{\$lang->predictions_thread_title}:</div>
+	  
+	<div class="formbit_field col-sm-10"><label><input type="checkbox" class="checkbox" name="post_prediction" value="1" {\$post_prediction_checked} /><strong>{$lang->predictions_thread_check}</strong></label><br />
+				{\$lang->predictions_thread_games} <select name="post_gameid">{\$predictions_game_options}</select></div>
+	  
+	</div>
+PREDICTION_BOX;
+
+	// Add a new template (hello_index) to our global templates (sid = -1)
+	$templatearray = array(
+	'predictions_row' => "<tr><td>{$row['username']}</td><td>{$row['score']}</td></tr>",
+	'prediction_box' => $prediction_box,
+	'latest_game' => $latest_game,
+	'thread_game' => $thread_game,
+	'thread_game_stats' => $thread_game_stats,
+	'thread_game_form' => $thread_game_form,
+	'add_team' => $add_team,
+	'add_game' => $add_game,
+	'post' => '<br /><br /><strong>{$lang->hello}:</strong><br />{$messages}',
+    'message' => '<br /> - {$message}'
+	);
+
+	$group = array(
+		'prefix' => $db->escape_string('predictions'),
+		'title' => $db->escape_string('Predictions')
+	);
+
+	// Update or create template group:
+	$query = $db->simple_select('templategroups', 'prefix', "prefix='{$group['prefix']}'");
+
+	if($db->fetch_field($query, 'prefix'))
+	{
+		$db->update_query('templategroups', $group, "prefix='{$group['prefix']}'");
+	}
+	else
+	{
+		$db->insert_query('templategroups', $group);
+	}
+
+	// Query already existing templates.
+	$query = $db->simple_select('templates', 'tid,title,template', "sid=-2 AND (title='{$group['prefix']}' OR title LIKE '{$group['prefix']}=_%' ESCAPE '=')");
+
+	$templates = $duplicates = array();
+
+	while($row = $db->fetch_array($query))
+	{
+		$title = $row['title'];
+		$row['tid'] = (int)$row['tid'];
+
+		if(isset($templates[$title]))
+		{
+			// PluginLibrary had a bug that caused duplicated templates.
+			$duplicates[] = $row['tid'];
+			$templates[$title]['template'] = false; // force update later
+		}
+		else
+		{
+			$templates[$title] = $row;
+		}
+	}
+
+	// Delete duplicated master templates, if they exist.
+	if($duplicates)
+	{
+		$db->delete_query('templates', 'tid IN ('.implode(",", $duplicates).')');
+	}
+
+	// Update or create templates.
+	foreach($templatearray as $name => $code)
+	{
+		if(strlen($name))
+		{
+			$name = "predictions_{$name}";
+		}
+		else
+		{
+			$name = "predictions";
+		}
+
+		$template = array(
+			'title' => $db->escape_string($name),
+			'template' => $db->escape_string($code),
+			'version' => 1,
+			'sid' => -2,
+			'dateline' => TIME_NOW
+		);
+
+		// Update
+		if(isset($templates[$name]))
+		{
+			if($templates[$name]['template'] !== $code)
+			{
+				// Update version for custom templates if present
+				$db->update_query('templates', array('version' => 0), "title='{$template['title']}'");
+
+				// Update master template
+				$db->update_query('templates', $template, "tid={$templates[$name]['tid']}");
+			}
+		}
+		// Create
+		else
+		{
+			$db->insert_query('templates', $template);
+		}
+
+		// Remove this template from the earlier queried list.
+		unset($templates[$name]);
+	}
+
+	// Remove no longer used templates.
+	foreach($templates as $name => $row)
+	{
+		$db->delete_query('templates', "title='{$db->escape_string($name)}'");
+	}
+
+	// Settings group array details
+	$group = array(
+		'name' => 'predictions',
+		'title' => $db->escape_string($lang->setting_group_predictions),
+		'description' => $db->escape_string($lang->setting_group_predictions_desc),
+		'isdefault' => 0
+	);
+
+	// Check if the group already exists.
+	$query = $db->simple_select('settinggroups', 'gid', "name='predictions'");
+
+	if($gid = (int)$db->fetch_field($query, 'gid'))
+	{
+		// We already have a group. Update title and description.
+		$db->update_query('settinggroups', $group, "gid='{$gid}'");
+	}
+	else
+	{
+		// We don't have a group. Create one with proper disporder.
+		$query = $db->simple_select('settinggroups', 'MAX(disporder) AS disporder');
+		$disporder = (int)$db->fetch_field($query, 'disporder');
+
+		$group['disporder'] = ++$disporder;
+
+		$gid = (int)$db->insert_query('settinggroups', $group);
+	}
+
+	// Deprecate all the old entries.
+	$db->update_query('settings', array('description' => 'PREDICTIONSDELETEMARKER'), "gid='{$gid}'");
+
+	// add settings
+	$settings = array(
+	'enablethread'	=> array(
+		'optionscode'	=> 'yesno',
+		'value'			=> 1
+	),
+	'enablegame' => array(
+		'optionscode' => 'yesno',
+		'value' => 1
+	),
+	'latestgame'	=> array(
+		'optionscode'	=> 'yesno',
+		'value'			=> 1
+	));
+
+	$disporder = 0;
+
+	// Create and/or update settings.
+	foreach($settings as $key => $setting)
+	{
+		// Prefix all keys with group name.
+		$key = "predictions_{$key}";
+
+		$lang_var_title = "setting_{$key}";
+		$lang_var_description = "setting_{$key}_desc";
+
+		$setting['title'] = $lang->{$lang_var_title};
+		$setting['description'] = $lang->{$lang_var_description};
+
+		// Filter valid entries.
+		$setting = array_intersect_key($setting,
+			array(
+				'title' => 0,
+				'description' => 0,
+				'optionscode' => 0,
+				'value' => 0,
+		));
+
+		// Escape input values.
+		$setting = array_map(array($db, 'escape_string'), $setting);
+
+		// Add missing default values.
+		++$disporder;
+
+		$setting = array_merge(
+			array('description' => '',
+				'optionscode' => 'yesno',
+				'value' => 0,
+				'disporder' => $disporder),
+		$setting);
+
+		$setting['name'] = $db->escape_string($key);
+		$setting['gid'] = $gid;
+
+		// Check if the setting already exists.
+		$query = $db->simple_select('settings', 'sid', "gid='{$gid}' AND name='{$setting['name']}'");
+
+		if($sid = $db->fetch_field($query, 'sid'))
+		{
+			// It exists, update it, but keep value intact.
+			unset($setting['value']);
+			$db->update_query('settings', $setting, "sid='{$sid}'");
+		}
+		else
+		{
+			// It doesn't exist, create it.
+			$db->insert_query('settings', $setting);
+			// Maybe use $db->insert_query_multiple somehow
+		}
+	}
+
+	// Delete deprecated entries.
+	$db->delete_query('settings', "gid='{$gid}' AND description='PREDICTIONSDELETEMARKER'");
+
+	// This is required so it updates the settings.php file as well and not only the database - they must be synchronized!
+	rebuild_settings();
+
+	// Include this file because it is where find_replace_templatesets is defined
+	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
+
+	// Edit the index template and add our variable to above {$forums}
+	find_replace_templatesets('newthread', '#'.preg_quote('{$pollbox}').'#', "{\$pollbox}\n{\$predictions_prediction_box}");
+	find_replace_templatesets('showthread', '#'.preg_quote('{$pollbox}').'#', "{\$pollbox}\n{\$predictions_thread_game}");
+}
+
+/*
+ * _deactivate():
+ *    Called whenever a plugin is deactivated. This should essentially 'hide' the plugin from view
+ *    by removing templates/template changes etc. It should not, however, remove any information
+ *    such as tables, fields etc - that should be handled by an _uninstall routine. When a plugin is
+ *    uninstalled, this routine will also be called before _uninstall() if the plugin is active.
+*/
+function predictions_deactivate()
+{
+	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
+
+	// remove template edits
+	find_replace_templatesets('newthread', '#'.preg_quote('{$predictions_prediction_box}').'#', '');
+	find_replace_templatesets('showthread', '#'.preg_quote('{$predictions_thread_game}').'#', '');
+}
+
+/*
+ * _install():
+ *   Called whenever a plugin is installed by clicking the 'Install' button in the plugin manager.
+ *   If no install routine exists, the install button is not shown and it assumed any work will be
+ *   performed in the _activate() routine.
+*/
+function predictions_install()
+{
+	global $db;
+
+	// Create our table collation
+	$collation = $db->build_create_table_collation();
+
+	if(!$db->table_exists('predictions_forum'))
+	{
+		switch($db->type)
+		{
+			case "pgsql":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."hello_messages (
+					mid serial,
+					message varchar(100) NOT NULL default '',
+					PRIMARY KEY (mid)
+				);");
+				break;
+			case "sqlite":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_forum (
+                    forum_id INTEGER PRIMARY KEY
+				);");
+				break;
+			default:
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_forum (
+					forum_id INTEGER PRIMARY KEY,
+					FOREIGN KEY (forum_id)
+						REFERENCES ".TABLE_PREFIX."forums(fid)
+				) ENGINE=MyISAM{$collation};");
+				break;
+		}
+	}
+
+    if(!$db->table_exists('predictions_conference'))
+	{
+		switch($db->type)
+		{
+			case "pgsql":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."hello_messages (
+					mid serial,
+					message varchar(100) NOT NULL default '',
+					PRIMARY KEY (mid)
+				);");
+				break;
+			case "sqlite":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_conference (
+                    tid INTEGER PRIMARY KEY,
+                    name varchar(128) NOT NULL,
+                    logo varchar(256) NOT NULL,
+                    color varchar(8) NOT NULL
+				);");
+				break;
+			default:
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_conference (
+					conference_id int unsigned NOT NULL auto_increment,
+					name varchar(64) NOT NULL,
+					PRIMARY KEY (conference_id)
+				) ENGINE=MyISAM{$collation};");
+				break;
+		}
+	}
+	
+    if(!$db->table_exists('predictions_team'))
+	{
+		switch($db->type)
+		{
+			case "pgsql":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."hello_messages (
+					mid serial,
+					message varchar(100) NOT NULL default '',
+					PRIMARY KEY (mid)
+				);");
+				break;
+			case "sqlite":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_team (
+                    tid INTEGER PRIMARY KEY,
+                    name varchar(128) NOT NULL,
+                    logo varchar(256) NOT NULL,
+                    color varchar(8) NOT NULL
+				);");
+				break;
+			default:
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_team (
+					team_id int unsigned NOT NULL auto_increment,
+					conference_id INTEGER NOT NULL,
+					name varchar(64) NOT NULL,
+					abbreviation varchar(8) NOT NULL,
+					mascot varchar(64) NOT NULL,
+                    logo varchar(256) NOT NULL,
+                    color varchar(8) NOT NULL,
+					PRIMARY KEY (team_id),
+					FOREIGN KEY (conference_id)
+						REFERENCES ".TABLE_PREFIX."predictions_conference(conference_id)
+				) ENGINE=MyISAM{$collation};");
+				break;
+		}
+    }
+
+	if(!$db->table_exists('predictions_game'))
+	{
+		switch($db->type)
+		{
+			case "pgsql":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."hello_messages (
+					mid serial,
+					message varchar(100) NOT NULL default '',
+					PRIMARY KEY (mid)
+				);");
+				break;
+			case "sqlite":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_game (
+					gid INTEGER PRIMARY KEY,
+					tid INTEGER NULL,
+                    season INTEGER NOT NULL,
+                    home_tid INTEGER NOT NULL,
+                    away_tid INTEGER NOT NULL,
+                    prediction_time DATETIME_INT NOT NULL,
+					game_time DATETIME_INT NOT NULL,
+					FOREIGN KEY(tid) REFERENCES ".TABLE_PREFIX."posts(tid),
+                    FOREIGN KEY(home_tid) REFERENCES ".TABLE_PREFIX."predictions_team(tid),
+                    FOREIGN KEY(away_tid) REFERENCES ".TABLE_PREFIX."predictions_team(tid)
+				);");
+				break;
+			default:
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_game (
+					game_id int unsigned NOT NULL auto_increment,
+					thread_id INTEGER NULL,
+					season INTEGER NOT NULL,
+                    home_team_id INTEGER NOT NULL,
+                    away_team_id INTEGER NOT NULL,
+                    prediction_time DATETIME NOT NULL,
+					game_time DATETIME NOT NULL,
+					home_score INTEGER NULL,
+					away_score INTEGER NULL,
+					PRIMARY KEY (game_id),
+					FOREIGN KEY (thread_id)
+						REFERENCES ".TABLE_PREFIX."threads(tid),
+					FOREIGN KEY (home_team_id)
+						REFERENCES ".TABLE_PREFIX."predictions_team(team_id),
+					FOREIGN KEY (away_team_id)
+						REFERENCES ".TABLE_PREFIX."predictions_team(team_id)
+				) ENGINE=MyISAM{$collation};");
+				break;
+		}
+    }
+    
+	// Create predictions table if it doesn't exist already
+	if(!$db->table_exists('predictions_prediction'))
+	{
+		switch($db->type)
+		{
+			case "pgsql":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."hello_messages (
+					mid serial,
+					message varchar(100) NOT NULL default '',
+					PRIMARY KEY (mid)
+				);");
+				break;
+			case "sqlite":
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_prediction (
+                    pid INTEGER PRIMARY KEY,
+                    gid INTEGER NOT NULL,
+                    home_score INTEGER NOT NULL,
+                    home_nickname varchar(128),
+                    away_score INTEGER NOT NULL,
+                    away_nickname varchar(128),
+                    points INTEGER NULL,
+                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(gid) REFERENCES ".TABLE_PREFIX."predictions_game(gid)
+				);");
+				break;
+			default:
+				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_prediction (
+					prediction_id int unsigned NOT NULL auto_increment,
+					game_id INTEGER NOT NULL,
+					user_id INTEGER NOT NULL,
+					home_score INTEGER NOT NULL,
+                    home_nickname varchar(128),
+                    away_score INTEGER NOT NULL,
+                    away_nickname varchar(128),
+                    points INTEGER NULL,
+                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					PRIMARY KEY (prediction_id),
+					FOREIGN KEY (game_id)
+						REFERENCES ".TABLE_PREFIX."predictions_game(game_id),
+					FOREIGN KEY (user_id)
+						REFERENCES ".TABLE_PREFIX."users(uid)
+				) ENGINE=MyISAM{$collation};");
+				break;
+		}
+	}
+	
+	predictions_insert_data();
+}
+
+/*
+ * _is_installed():
+ *   Called on the plugin management page to establish if a plugin is already installed or not.
+ *   This should return TRUE if the plugin is installed (by checking tables, fields etc) or FALSE
+ *   if the plugin is not installed.
+*/
+function predictions_is_installed()
+{
+	global $db;
+
+	// If the table exists then it means the plugin is installed because we only drop it on uninstallation
+	return $db->table_exists('predictions_prediction');
+}
+
+/*
+ * _uninstall():
+ *    Called whenever a plugin is to be uninstalled. This should remove ALL traces of the plugin
+ *    from the installation (tables etc). If it does not exist, uninstall button is not shown.
+*/
+function predictions_uninstall()
+{
+	global $db, $mybb;
+
+	if($mybb->request_method != 'post')
+	{
+		global $page, $lang;
+		$lang->load('predictions');
+
+		$page->output_confirm_action('index.php?module=config-plugins&action=deactivate&uninstall=1&plugin=predictions', $lang->predictions_uninstall_message, $lang->predictions_uninstall);
+	}
+
+	// Delete template groups.
+	$db->delete_query('templategroups', "prefix='predictions'");
+
+	// Delete templates belonging to template groups.
+	$db->delete_query('templates', "title='predictions' OR title LIKE 'predictions_%'");
+
+	// Delete settings group
+	$db->delete_query('settinggroups', "name='predictions'");
+
+	// Remove the settings
+	$db->delete_query('settings', "name IN ('predictions_enablethread','predictions_latestgame', 'predicitons_enablegame')");
+
+	// This is required so it updates the settings.php file as well and not only the database - they must be synchronized!
+	rebuild_settings();
+
+	// Drop tables if desired
+	if(!isset($mybb->input['no']))
+	{
+        $db->drop_table('predictions_prediction');
+        $db->drop_table('predictions_game');
+		$db->drop_table('predictions_team');
+		$db->drop_table('predictions_conference');
+		$db->drop_table('predictions_forum');
+	}
+}
+
+/*
+ * Loads the settings language strings.
+*/
+function predictions_settings()
+{
+	global $lang;
+
+	// Load our language file
+	$lang->load('predictions');
+}
+
+/*
+ * Displays the list of messages on index and a form to submit new messages - depending on the setting of course.
+*/
+function predictions_index()
+{
+	global $mybb;
+
+	// Only run this function is the setting is set to yes
+	if($mybb->settings['predictions_display1'] == 0)
+	{
+		return;
+	}
+
+	global $db, $lang, $templates, $predictions, $theme;
+
+	// Load our language file
+	$lang->load('predictions');
+
+	// Retreive all predictions from the database
+    $messages = '';
+    $query = $db->query("
+        SELECT u.uid, u.username, g.season, a.name, h.name, p.away_score, p.home_score, p.points
+        FROM ".TABLE_PREFIX."predictions_prediction p
+        INNER JOIN ".TABLE_PREFIX."predictions_game g ON (p.game_id=p.game_id)
+        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+        INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
+        ORDER BY g.season DESC, p.points DESC, u.username
+    ");
+
+	while($row = $db->fetch_array($query, 'message'))
+	{
+		$messages .= eval($templates->render('predictions_predictionrow'));
+	}
+
+	// If no messages were found, display that notice.
+	if(empty($messages))
+	{
+		$message = $lang->predictions_empty;
+		$messages = eval($templates->render('predictions_predictionrow'));
+	}
+
+	// Set $hello as our template and use eval() to do it so we can have our variables parsed
+	#eval('$hello = "'.$templates->get('hello_index').'";');
+	$precitions = eval($templates->render('predictions_index'));
+}
+
+/*
+ * Displays the current game if there's one pending
+ */
+function predictions_latest_game()
+{
+	global $settings, $foruminfo, $db;
+
+	// Only run this function is the setting is set to yes
+	if($settings['predictions_latestgame'] == 0)
+	{
+		return;
+	}
+	// Also check that this forum is eligible for showing the latest game
+	$check = $db->simple_select("predictions_forum", "forum_id", "forum_id=".$foruminfo['fid']);
+	if($check->num_rows == 0) {
+		return;
+	}
+	global $lang, $templates;
+
+	// Load our language file
+	if(!isset($lang->predictions))
+	{
+		$lang->load('predictions');
+	}
+
+	static $latest_game;
+
+	// Only retreive the latest game from the database if it was not retrieved already
+	if(!isset($latest_game))
+	{
+		// Retreive all messages from the database
+		$query = $db->query("
+			SELECT a.name as away_name, a.logo as away_logo, h.name as home_name, h.logo as home_logo, AVG(p.away_score) as away_score, AVG(p.home_score) as home_score
+			FROM ".TABLE_PREFIX."predictions_game g
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+			LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
+			WHERE g.prediction_time < NOW() and g.game_time > NOW()
+			GROUP BY a.name, a.logo, h.name, h.logo, g.game_time
+			ORDER BY g.game_time ASC
+			LIMIT 1
+		");
+		$row = $db->fetch_array($query);
+
+		if(is_null($row)) {
+			return;
+		}
+
+		$game = $row;
+		if (is_null($game['home_score'])) {
+			$game["home_score"] = "?";
+			$game["away_score"] = "?";
+		}
+		
+		$latest_game = eval($templates->render('predictions_latest_game'));
+
+	}
+
+	global $threadslist;
+	$threadslist = $latest_game."\n\n".$threadslist;
+}
+
+function console_log( $data ){
+	echo '<script>';
+	echo 'console.log('. json_encode( $data ) .')';
+	echo '</script>';
+  }
+
+
+function predictions_add_team()
+{
+	global $mybb;
+
+	// If we're not running the 'add_team' action as specified in our form, get out of there.
+	if($mybb->get_input('action') != 'add_team')
+	{
+		return;
+	}
+
+	// Only accept POST
+	if($mybb->request_method != 'post')
+	{
+		error_no_permission();
+	}
+
+	global $lang;
+
+	// Correct post key? This is important to prevent CSRF
+	verify_post_check($mybb->get_input('my_post_key'));
+
+	// Load our language file
+	$lang->load('predictions');
+
+	$name = trim($mybb->get_input('name'));
+	$logo = trim($mybb->get_input('logo'));
+	$color = trim($mybb->get_input('color'));
+	
+	// Name cannot be empty
+	if(!$name || my_strlen($name) > 128)
+	{
+		error($lang->predictions_name_empty);
+	}
+
+	// Logo cannot be empty
+	if(!$logo || my_strlen($logo) > 256)
+	{
+		error($lang->predictions_logo_empty);
+	}
+
+	// Color cannot be empty
+	if(!$color || my_strlen($color) > 8)
+	{
+		error($lang->predictions_color_empty);
+	}
+
+	global $db;
+
+	// Escape input data
+	$name = $db->escape_string($name);
+	$logo = $db->escape_string($name);
+	$color = $db->escape_string($name);
+
+	// Insert into database
+	$db->insert_query('predictions_team', array('name' => $name, 'logo' => $logo, 'color' => $color));
+
+	// Redirect to index.php with a message
+	redirect('predictions.php', $lang->predictions_team_added);
+}
+
+
+function predictions_prediction_box()
+{
+	
+	global $mybb, $lang, $templates, $bgcolor2, $forum, $settings, $db;
+
+	// Only run this function is the setting is set to yes
+	if($settings['predictions_enablethread'] == 0)
+	{
+		return;
+	}
+	// Also check that this forum is eligible for showing the latest game
+	$check = $db->simple_select("predictions_forum", "forum_id", "forum_id=".$forum['fid']);
+	if($check->num_rows == 0) {
+		return;
+	}
+
+
+	// Load our language file
+	if(!isset($lang->predictions))
+	{
+		$lang->load('predictions');
+	}
+
+	static $pb;
+
+	// Only retreive the latest game from the database if it was not retrieved already
+	if(!isset($pb))
+	{
+		// Retreive eligible games
+		$query = $db->query("
+			SELECT g.game_id, a.name as away_name, h.name as home_name, g.game_time
+			FROM ".TABLE_PREFIX."predictions_game g
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+			WHERE g.prediction_time < NOW() and g.game_time > NOW()
+			ORDER BY g.game_time ASC
+		");
+		$predictions_game_options = "";
+		while($row = $db->fetch_array($query)) {
+			$predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_name"].' at '.$row["home_name"].'</option>';
+		}
+
+		if($predictions_game_options == "") {
+			return;
+		}
+		
+		$pb = eval($templates->render('predictions_prediction_box'));
+	}
+	global $predictions_prediction_box;
+	$predictions_prediction_box = $pb;
+}
+
+function predictions_prediction_thread()
+{
+	global $mybb, $tid, $db;
+	if($mybb->get_input('action') == 'do_newthread')
+	{
+		$post_prediction = $mybb->get_input('post_prediction');
+		if($post_prediction) {
+			$gid = $mybb->get_input('post_gameid');
+			$db->update_query("predictions_game", array('thread_id' => $tid), "game_id=".$gid);
+		}
+	}
+}
+
+function predictions_insert_data()
+{
+	global $db;
+	require MYBB_ROOT.'inc/config.php';
+	
+	require_once MYBB_ROOT."admin/modules/predictions/mysql_db_inserts.php";
+	foreach($inserts as $val)
+	{
+		$val = preg_replace('#mybb_(\S+?)([\s\.,]|$)#', $config['database']['table_prefix'].'\\1\\2', $val);
+		$db->query($val);
+	}
+
+}
+
+function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
+	$count = 0;
+	$home_total = 0;
+	$away_total = 0;
+	$max = 0;
+	$max_details = null;
+	$min = null;
+	$min_details = null;
+	$max_margin_home = 0;
+	$max_margin_home_details = null;
+	$max_margin_away = 0;
+	$max_margin_away_details = null;
+	$query = $db->query("
+		SELECT u.uid, u.username, p.away_score, p.away_nickname, p.home_score, p.home_nickname
+		from ".TABLE_PREFIX."predictions_prediction p
+		INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
+		WHERE p.game_id=".$game_id
+	);
+	$nicknames = array();
+	while($prediction = $db->fetch_array($query)) {
+		$home_total += $prediction['home_score'];
+		$away_total += $prediction['away_score'];
+		$total = $prediction['home_score'] + $prediction['away_score'];
+		if($total > $max_home) {
+			$max = $total;
+			$max_details = array(
+				"user" => $prediction['username'],
+				"home" => $prediction['home_score'],
+				"away" => $prediction['away_score']
+			);
+		}
+		if(($total < $min) || is_null($min)) {
+			$min = $total;
+			$min_details = array(
+				"user" => $prediction['username'],
+				"home" => $prediction['home_score'],
+				"away" => $prediction['away_score']
+			);
+		}
+		$home_margin = $prediction['home_score'] - $prediction['away_score'];
+		if($home_margin > $max_margin_home) {
+			$max_margin_home = $home_margin;
+			$max_margin_home_details = array(
+				"user" => $prediction['username'],
+				"home" => $prediction['home_score'],
+				"away" => $prediction['away_score']
+			);
+		}
+		$away_margin = $prediction['away_score'] - $prediction['home_score'];
+		if($away_margin > $max_margin_away) {
+			$max_margin_away = $away_margin;
+			$max_margin_away_details = array(
+				"user" => $prediction['username'],
+				"home" => $prediction['home_score'],
+				"away" => $prediction['away_score']
+			);
+		}
+		if($prediction['home_nickname'] != "") {
+			array_push($nicknames, array(
+				"home" => $prediction['home_nickname'],
+				"away" => $prediction['away_nickname'],
+				"user" => $prediction['username']
+			));
+		}
+
+		$count += 1;
+	}
+	$home_avg = "?";
+	$away_avg = "?";
+	if($count > 0) {
+		$home_avg = round($home_total / $count);
+		$away_avg = round($away_total / $count);
+	}
+	$output = array(
+		"count" => $count,
+		"home_avg" => $home_avg,
+		"away_avg" => $away_avg,
+		"over" => $max_details,
+		"under" => $min_details
+	);
+
+	if($is_at_home) {
+		$output["red_hot"] = $max_margin_home_details;
+		$output["shame"] = $max_margin_away_details;
+	} else {
+		$output["red_hot"] = $max_margin_away_details;
+		$output["shame"] = $max_margin_home_details;
+	}
+	return $output;
+}
+
+function predictions_thread_game()
+{
+	global $settings, $thread, $db, $lang, $templates, $user, $mybb;
+
+	// Only run this function is the setting is set to yes
+	if($settings['predictions_enablegame'] == 0)
+	{
+		return;
+	}
+
+	// Load our language file
+	if(!isset($lang->predictions))
+	{
+		$lang->load('predictions');
+	}
+
+	static $thread_game;
+
+	// Only retreive the latest game from the database if it was not retrieved already
+	if(!isset($thread_game))
+	{
+		// Retreive all messages from the database
+		$query = $db->query("
+			SELECT g.game_id, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
+			FROM ".TABLE_PREFIX."predictions_game g
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+			WHERE g.thread_id=".$thread['tid']
+		);
+		$game = $db->fetch_array($query);
+		if(is_null($game)) {
+			return;
+		}
+		$stanford_id = 151;
+		$stats = predictions_calculate_game_stats($db, $mybb->user['uid'], $game["game_id"], $stanford_id == $game["home_id"]);
+		console_log($stats);
+		if($stats["count"] == 0) {
+			$predictions_stats_panel = '<div id="predictions_stats_panel"><i>Not enough predictions to show stats</i></div>';
+		} else {
+			$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
+		}
+		
+		$predictions_action_text = "Make Prediction";
+		$predictions_predict_panel = eval($templates->render('predictions_thread_game_form'));
+		
+
+		$game["home_score"] = $stats["home_avg"];
+		$game["away_score"] = $stats["away_avg"];
+		
+
+		$predictions_predict_script = <<<PREDICT_SCRIPT
+	<script language="javascript">
+	function predictions_toggle_panel() {
+		if ($("#predictions_predict_panel").is(":hidden")) {
+			$("#predictions_stats_panel").hide();
+			$("#predictions_predict_panel").show();
+			$("#predictions_action_text").text("Show Stats");
+		} else {
+			$("#predictions_predict_panel").hide();
+			$("#predictions_stats_panel").show();
+			$("#predictions_action_text").text("$predictions_action_text");
+		}
+	}
+
+	function predictions_make_prediction() {
+		/*$.get( "/xmlhttp.php?action=predictions_make_prediction", function( data ) {
+			console.log("returned");
+			console.log(data);
+		  });*/
+		var prediction_id = parseInt($("#prediction_id").val().trim());
+		var home_score = parseInt($("#predictions_home_score").val().trim());
+		var away_score = parseInt($("#predictions_away_score").val().trim());
+		var home_nickname = $("#predictions_home_nickname").val().trim();
+		var away_nickname = $("#predictions_away_nickname").val().trim();
+
+		var valid = true;
+		if (isNaN(home_score)) { 
+			$("#predictions_home_score").addClass("error");
+			valid = false;
+		} else {
+			$("#predictions_home_score").removeClass("error");
+		}
+
+		if (isNaN(away_score)) { 
+			$("#predictions_away_score").addClass("error");
+			valid = false;
+		} else {
+			$("#predictions_away_score").removeClass("error");
+		}
+
+		if(valid) {
+			var post_data = {
+				csrf_token: $("#csrf_token").val(),
+				action: "predictions_make_prediction",
+				home_score: home_score,
+				away_score: away_score,
+				home_nickname: home_nickname,
+				away_nickname: away_nickname,
+				user_id: $("#user_id").val(),
+				game_id: $("#game_id").val()
+			};
+			if(!isNaN(prediction_id)) {
+				post_data["prediction_id"] = prediction_id;
+			};
+			console.log(post_data);
+			$.post("/xmlhttp.php", post_data, function( data ) {
+				console.log(data);
+			});
+		}
+	}
+
+	</script>
+PREDICT_SCRIPT;
+
+		$user_id = $mybb->user['uid'];
+		$thread_game = eval($templates->render('predictions_thread_game'));
+
+	}
+	global $predictions_thread_game;
+	$predictions_thread_game = $thread_game;
+}
+
+function predictions_ajax()
+{
+	global $settings, $thread, $db, $lang, $templates, $user;
+
+	// Only run this function is the setting is set to yes
+	if($settings['predictions_enablegame'] == 0)
+	{
+		return;
+	}
+
+}
+
+function predictions_ajax_action()
+{
+	global $mybb, $charset, $db;
+
+    if($mybb->get_input('action') == 'predictions_make_prediction')
+    {
+		if($mybb->request_method != 'post') {
+			return;
+		}
+		// Prevent CSRF
+		verify_post_check($mybb->get_input('csrf_token'));
+
+		$existing_prediction_id = $mybb->get_input("prediction_id");
+		
+		$args = array(
+			'game_id' => $mybb->get_input('game_id'),
+			'user_id' => $mybb->get_input('user_id'),
+			'home_score' => $mybb->get_input('home_score'),
+			'away_score' => $mybb->get_input('away_score')
+		);
+
+		if($mybb->get_input('home_nickname') != "") {
+			$args['home_nickname'] = $mybb->get_input('home_nickname');
+		}
+		if($mybb->get_input('away_nickname') != "") {
+			$args['away_nickname'] = $mybb->get_input('away_nickname');
+		}
+		$data = array('hello' => 'world', 'method' => $mybb->request_method);
+		if($existing_prediction_id == "") {
+			$data["insert"] = $args;
+			$db->insert_query('predictions_prediction', $args);
+		} else {
+			$db->update_query('predictions_prediction', $args, "prediction_id=".$existing_prediction_id);
+		}
+		
+
+
+        header("Content-type: application/json; charset={$charset}");
+		
+        echo json_encode($data);
+        exit;
+    }
+}

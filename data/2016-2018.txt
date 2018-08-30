@@ -1,0 +1,39 @@
+2-Sep-16	9:00 PM		Kansas State	W	26	13
+17-Sep-16	8:00 PM		USC	W	27	10
+24-Sep-16	8:00 PM	@	UCLA	W	22	13
+30-Sep-16	9:00 PM	@	(10) Washington	L	6	44
+8-Oct-16	10:30 PM		Washington State	L	16	42
+15-Oct-16	7:30 PM	@	Notre Dame	W	17	10
+22-Oct-16	3:00 PM		Colorado	L	5	10
+29-Oct-16	11:00 PM	@	Arizona	W	34	10
+5-Nov-16	3:30 PM		Oregon State	W	26	15
+12-Nov-16	4:00 PM	@	Oregon	W	52	27
+19-Nov-16	5:30 PM	@	California	W	45	31
+26-Nov-16	8:00 PM		Rice	W	41	17
+30-Dec-16	2:00 PM	N	North Carolina	W	25	23
+26-Aug-17	10:00 PM	N	Rice	W	62	7
+9-Sep-17	8:30 PM	@	(6) USC	L	24	42
+16-Sep-17	10:30 PM	@	San Diego State	L	17	20
+23-Sep-17	10:30 PM		UCLA	W	58	34
+30-Sep-17	4:00 PM		Arizona State	W	34	24
+7-Oct-17	10:15 PM	@	(20) Utah	W	23	20
+14-Oct-17	11:00 PM		Oregon	W	49	7
+26-Oct-17	9:00 PM	@	Oregon State	W	15	14
+4-Nov-17	3:30 PM	@	(25) Washington State	L	21	24
+10-Nov-17	10:30 PM		(9) Washington	W	30	22
+18-Nov-17	8:00 PM		California	W	17	14
+25-Nov-17	8:00 PM		(9) Notre Dame	W	38	20
+1-Dec-17	8:00 PM	@	(11) USC	L	28	31
+28-Dec-17	9:00 PM	@	(13) TCU	L	37	39
+31-Aug-18	9:00 PM		San Diego State			
+8-Sep-18	8:30 PM		(15) USC			
+15-Sep-18	2:00 PM		UC Davis			
+22-Sep-18	12:00 PM	@	(24) Oregon			
+29-Sep-18	7:30 PM	@	(12) Notre Dame			
+6-Oct-18	12:00 PM		Utah			
+18-Oct-18	9:00 PM	@	Arizona State			
+27-Oct-18	12:00 PM		Washington State			
+3-Nov-18	12:00 PM	@	(6) Washington			
+10-Nov-18	12:00 PM		Oregon State			
+17-Nov-18	12:00 PM	@	California			
+24-Nov-18	12:00 PM	@	UCLA			
