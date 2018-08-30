@@ -206,7 +206,7 @@ LATEST_GAME;
 				</div>
 			</div>
 			<div class="col-md-3 text-center">
-				<span style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span>
+				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span>
 			</div>
 		</div>
 	</div>
@@ -218,7 +218,7 @@ LATEST_GAME;
 	<div class="col-md-4">
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-3 text-center">
-				<span style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span>
+				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span>
 			</div>
 			<div class="col-md-9">
 				<div class="row">
@@ -240,12 +240,17 @@ LATEST_GAME;
 		</div>
 	</div>
 	<div class="col-md-3">
+		<div id="predictions_thread_game_interactive">
 		<div class="row">
 			{\$predictions_stats_panel}
 			{\$predictions_predict_panel}
 		</div>
 		<div class="row">
-			<a href="javascript:predictions_toggle_panel();" class="button" id="predictions_toggle_panel_button"><span id="predictions_action_text">{\$predictions_action_text}</span></a>
+			{\$predictions_toggle_button}
+		</div>
+		</div>
+		<div id="predictions_thread_game_loading" style="display: none">
+			<img src="/images/predictions/ajax-loader.gif" />
 		</div>
 	</div>
 </div>
@@ -256,19 +261,19 @@ THREAD_GAME;
 	<div id="predictions_stats_panel">
 		<div class="row">
 			Took the Over:<br />
-			{$stats['over']['user']} ({$stats['over']['away']} - {$stats['over']['home']})
+			{\$stats['over']['user']} ({\$stats['over']['away']} - {\$stats['over']['home']})
 		</div>
 		<div class="row">
 			Took the Under:<br />
-			{$stats['under']['user']} ({$stats['under']['away']} - {$stats['under']['home']})
+			{\$stats['under']['user']} ({\$stats['under']['away']} - {\$stats['under']['home']})
 		</div>
 		<div class="row">
 			Red Hot:<br />
-			{$stats['red_hot']['user']} ({$stats['red_hot']['away']} - {$stats['red_hot']['home']})
+			{\$stats['red_hot']['user']} ({\$stats['red_hot']['away']} - {\$stats['red_hot']['home']})
 		</div>
 		<div class="row">
 			Shame! Shame! Shame!:<br />
-			{$stats['shame']['user']} ({$stats['shame']['away']} - {$stats['shame']['home']})
+			{\$stats['shame']['user']} ({\$stats['shame']['away']} - {\$stats['shame']['home']})
 		</div>
 	</div>
 THREAD_GAME_STATS;
@@ -279,25 +284,25 @@ THREAD_GAME_STATS;
 		<input type="hidden" id="csrf_token" name="csrf_token" value="{\$mybb->post_code}">
 		<input type="hidden" id="game_id" name="game_id" value="{\$game['game_id']}">
 		<input type="hidden" id="user_id" name="user_id" value="{\$mybb->user['uid']}">
-		<input type="hidden" id="prediction_id" name="prediction_id" value="{\$prediction_id}">
+		<input type="hidden" id="prediction_id" name="prediction_id" value="{\$existing_prediction['prediction_id']}">
 		<div class="form-row">
 			<div class="form-group col-md-3">
       			<label for="predictions_away_score">{\$game['away_team']}</label>
-      			<input type="email" class="form-control" id="predictions_away_score" name="predictions_away_score" required="true" placeholder="score">
+      			<input class="form-control" id="predictions_away_score" name="predictions_away_score" required="true" placeholder="score" value="{\$existing_prediction['away_score']}">
 			</div>
 			<div class="form-group col-md-9">
 				<label for="predictions_away_nickname">&nbsp;</label>
-				<input type="text" class="form-control" id="predictions_away_nickname" name="predictions_away_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$predictions_existing_away_nickname}" tabindex="1" />
+				<input type="text" class="form-control" id="predictions_away_nickname" name="predictions_away_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$existing_prediction['away_nickname']}" tabindex="1" />
 			</div>
 		</div>
 		<div class="form-row">
 			<div class="form-group col-md-3">
       			<label for="predictions_home_score">{\$game['home_team']}</label>
-      			<input type="email" class="form-control" id="predictions_home_score" name="predictions_home_score" placeholder="score">
+      			<input type="email" class="form-control" id="predictions_home_score" name="predictions_home_score" placeholder="score" value="{\$existing_prediction['home_score']}">
 			</div>
 			<div class="form-group col-md-9">
 				<label for="predictions_home_nickname">&nbsp;</label>
-				<input type="text" class="form-control" id="predictions_home_nickname" name="predictions_home_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$predictions_existing_home_nickname}" tabindex="1" />
+				<input type="text" class="form-control" id="predictions_home_nickname" name="predictions_home_nickname" placeholder="Clever nickname (optional)" size="40" maxlength="128" value="{\$existing_prediction['home_nickname']}" tabindex="1" />
 			</div>
 		</div>
 		<div class="row text-center">
@@ -326,6 +331,7 @@ PREDICTION_BOX;
 	'thread_game' => $thread_game,
 	'thread_game_stats' => $thread_game_stats,
 	'thread_game_form' => $thread_game_form,
+	'toggle_button' => '<a href="javascript:predictions_toggle_panel();" class="button" id="predictions_toggle_panel_button"><span id="predictions_action_text">{$predictions_action_text}</span></a>',
 	'add_team' => $add_team,
 	'add_game' => $add_game,
 	'post' => '<br /><br /><strong>{$lang->hello}:</strong><br />{$messages}',
@@ -748,7 +754,8 @@ function predictions_install()
 					FOREIGN KEY (game_id)
 						REFERENCES ".TABLE_PREFIX."predictions_game(game_id),
 					FOREIGN KEY (user_id)
-						REFERENCES ".TABLE_PREFIX."users(uid)
+						REFERENCES ".TABLE_PREFIX."users(uid),
+					UNIQUE KEY game_user_unique (game_id, user_id)
 				) ENGINE=MyISAM{$collation};");
 				break;
 		}
@@ -1094,13 +1101,18 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 	$max_margin_away = 0;
 	$max_margin_away_details = null;
 	$query = $db->query("
-		SELECT u.uid, u.username, p.away_score, p.away_nickname, p.home_score, p.home_nickname
+		SELECT p.prediction_id, u.uid, u.username, p.away_score, p.away_nickname, p.home_score, p.home_nickname
 		from ".TABLE_PREFIX."predictions_prediction p
 		INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
 		WHERE p.game_id=".$game_id
 	);
+	$user_prediction = null;
 	$nicknames = array();
 	while($prediction = $db->fetch_array($query)) {
+		if($prediction['uid'] == $uid) {
+			$user_prediction = $prediction;
+
+		}
 		$home_total += $prediction['home_score'];
 		$away_total += $prediction['away_score'];
 		$total = $prediction['home_score'] + $prediction['away_score'];
@@ -1145,7 +1157,6 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 				"user" => $prediction['username']
 			));
 		}
-
 		$count += 1;
 	}
 	$home_avg = "?";
@@ -1159,7 +1170,8 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 		"home_avg" => $home_avg,
 		"away_avg" => $away_avg,
 		"over" => $max_details,
-		"under" => $min_details
+		"under" => $min_details,
+		"user_prediction" => $user_prediction
 	);
 
 	if($is_at_home) {
@@ -1193,7 +1205,7 @@ function predictions_thread_game()
 	// Only retreive the latest game from the database if it was not retrieved already
 	if(!isset($thread_game))
 	{
-		// Retreive all messages from the database
+		// Retreive the game for the current thread
 		$query = $db->query("
 			SELECT g.game_id, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
 			FROM ".TABLE_PREFIX."predictions_game g
@@ -1203,25 +1215,53 @@ function predictions_thread_game()
 		);
 		$game = $db->fetch_array($query);
 		if(is_null($game)) {
+			// if there's no game associated with this thread, we're done.
 			return;
 		}
+		
+		// Currently hardcoding stanford as the "main" team
 		$stanford_id = 151;
+
+		// Get the current logged in user_id (0 if anonymous)
+		$user_id = $mybb->user['uid'];
+
+		// Get the stats dictionary
 		$stats = predictions_calculate_game_stats($db, $mybb->user['uid'], $game["game_id"], $stanford_id == $game["home_id"]);
-		console_log($stats);
+		
+		// render the stats panel (blank if there aren't any predictions yet)
 		if($stats["count"] == 0) {
 			$predictions_stats_panel = '<div id="predictions_stats_panel"><i>Not enough predictions to show stats</i></div>';
 		} else {
 			$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
 		}
-		
-		$predictions_action_text = "Make Prediction";
-		$predictions_predict_panel = eval($templates->render('predictions_thread_game_form'));
-		
 
+		// Update the scores values in the game dictionary as calculated in the stats
 		$game["home_score"] = $stats["home_avg"];
 		$game["away_score"] = $stats["away_avg"];
-		
 
+		if($user_id == 0) {
+			// no need to have a predictions panel as anonymous users can't make predictions
+			$predictions_toggle_button = "";
+			$predictions_predict_panel = "";
+		} else {
+			$predictions_action_text = "";
+			// determine whether there is an existing prediction that should be updated			
+			if(is_null($stats["user_prediction"])) {
+				$predictions_action_text = "Make Prediction";
+			} else {
+				$predictions_action_text = "Update Prediction";
+			}
+			$predictions_toggle_button = eval($templates->render('predictions_toggle_button'));
+
+			// render our form
+			$existing_prediction = $stats["user_prediction"];
+			console_log("hi");
+			console_log($existing_prediction);
+			$predictions_predict_panel = eval($templates->render('predictions_thread_game_form'));
+
+		}
+
+		// This Javascript will handle the client side validation and ajax submission
 		$predictions_predict_script = <<<PREDICT_SCRIPT
 	<script language="javascript">
 	function predictions_toggle_panel() {
@@ -1236,11 +1276,15 @@ function predictions_thread_game()
 		}
 	}
 
+	function update_statline(stats, div_id, dict_key) {
+		if (stats[dict_key] == null) {
+			$(div_id).text("");
+		} else {
+			$(div_id).text(stats[dict_key]["user"] + " (" + stats[dict_key]["away"] + " - " + stats[dict_key]["home"] + ")");
+		}
+	}
+
 	function predictions_make_prediction() {
-		/*$.get( "/xmlhttp.php?action=predictions_make_prediction", function( data ) {
-			console.log("returned");
-			console.log(data);
-		  });*/
 		var prediction_id = parseInt($("#prediction_id").val().trim());
 		var home_score = parseInt($("#predictions_home_score").val().trim());
 		var away_score = parseInt($("#predictions_away_score").val().trim());
@@ -1276,9 +1320,20 @@ function predictions_thread_game()
 			if(!isNaN(prediction_id)) {
 				post_data["prediction_id"] = prediction_id;
 			};
-			console.log(post_data);
+			$("#predictions_thread_game_interactive").hide();
+			$("#predictions_thread_game_loading").show();
 			$.post("/xmlhttp.php", post_data, function( data ) {
 				console.log(data);
+				console.log($("#predictions_thread_game_away_score"));
+				$("#predictions_thread_game_away_score").text(data["away_avg"]);
+				$("#predictions_thread_game_home_score").text(data["home_avg"]);
+				update_statline(data, "#predictions_stats_over", "over");
+				update_statline(data, "#predictions_stats_under", "under");
+				update_statline(data, "#predictions_stats_redhot", "red_hot");
+				update_statline(data, "#predictions_stats_shame", "shame");
+				$("#predictions_thread_game_loading").hide();
+				$("#predictions_thread_game_interactive").show();
+				predictions_toggle_panel();
 			});
 		}
 	}
@@ -1286,7 +1341,8 @@ function predictions_thread_game()
 	</script>
 PREDICT_SCRIPT;
 
-		$user_id = $mybb->user['uid'];
+		
+
 		$thread_game = eval($templates->render('predictions_thread_game'));
 
 	}
@@ -1333,19 +1389,18 @@ function predictions_ajax_action()
 		if($mybb->get_input('away_nickname') != "") {
 			$args['away_nickname'] = $mybb->get_input('away_nickname');
 		}
-		$data = array('hello' => 'world', 'method' => $mybb->request_method);
+
 		if($existing_prediction_id == "") {
-			$data["insert"] = $args;
 			$db->insert_query('predictions_prediction', $args);
 		} else {
 			$db->update_query('predictions_prediction', $args, "prediction_id=".$existing_prediction_id);
 		}
-		
-
+	
+		$stanford_id = 151;
+		$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id);
 
         header("Content-type: application/json; charset={$charset}");
-		
-        echo json_encode($data);
+        echo json_encode($stats);
         exit;
     }
 }
