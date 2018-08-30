@@ -12,47 +12,105 @@ $lang->load('predictions');
 // Only required because we're using misc_help for our page wrapper
 $lang->load("misc");
 
-predictions_add_team();
-
+function calculate_points($game_id, $away_actual, $home_actual) {
+    
+}
 // Add a breadcrumb
 add_breadcrumb('Predictions', "predictions.php");
 
-// Calculate votes
+$game_id=$mybb->get_input('game_id');
+
+if($mybb->get_input('action') == 'predictions_update_actual') {
+    if($mybb->request_method == 'post') {
+        verify_post_check($mybb->get_input('csrf_token'));
+        $args = array(
+			'game_id' => $game_id,
+			'home_score' => $mybb->get_input('home_actual'),
+			'away_score' => $mybb->get_input('away_actual')
+        );
+        $db->update_query('predictions_game', $args, "game_id=".$game_id);
+        calculate_points($game_id, $away_actual, $home_actual);
+    }
+}
+
+// Retreive eligible games
 $query = $db->query("
-SELECT v.*, u.username
-FROM ".TABLE_PREFIX."pollvotes v
-LEFT JOIN ".TABLE_PREFIX."users u ON (u.uid=v.uid)
-WHERE v.pid='{$poll['pid']}'
-ORDER BY u.username
+    SELECT g.game_id, a.name as away_name, h.name as home_name, g.game_time, g.away_score, g.home_score
+    FROM ".TABLE_PREFIX."predictions_game g
+    INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+    INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+    WHERE g.thread_id IS NOT NULL
+    ORDER BY g.game_time ASC
 ");
-while($voter = $db->fetch_array($query))
-{
+$predictions_game_options = "";
+while($row = $db->fetch_array($query)) {
+    if($row['game_id'] == $game_id) {
+        $predictions_game_options .= '<option value="'.$row["game_id"].'" selected>'.$row["away_name"].' at '.$row["home_name"].'</option>';
+    } else {
+        $predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_name"].' at '.$row["home_name"].'</option>';
+    }
 }
 
-$results = $db->simple_select("predictions_team", "tid,name", "", array(
-    "order_by" => 'name',
-    "order_dir" => 'ASC'
-));
+$predictions_game_results="";
+$predictions_update_actual_score = "";
+if($game_id != "") {
+    $query = $db->query("
+        SELECT u.username, p.timestamp, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_score as home_actual, g.away_score as away_actual
+        FROM ".TABLE_PREFIX."predictions_prediction p
+        INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
+        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+        INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
+        WHERE g.game_id=".$game_id."
+        ORDER BY p.points desc, p.timestamp
+    ");
+    $first = true;
+    $home_team = 'Home';
+    $away_team = 'Away';
+    $predictions_predictions_results = "";
+    while($row = $db->fetch_array($query)) {
+        if($first) {
+            $home_actual = $row['home_actual'];
+            $away_actual = $row['away_actual'];
+            $home_team = $row['home_team'];
+            $away_team = $row['away_team'];
+            if($mybb->user['ismoderator']) {
+                eval('$predictions_update_actual_score = "' . $templates->get('predictions_update_actual_score') . '";');
+            }
+            $first = false;
+        }
+        $prediction = array(
+            "username" => $row['username'],
+            "timestamp" => $row["timestamp"]
+        );
+        if(!is_null($row['home_nickname'])) {
+            $home_team = $row['home_nickname'];
+        }
+        if(!is_null($row['away_nickname'])) {
+            $away_team = $row['away_nickname'];
+        }
+        $prediction["prediction"] = $away_team . " " . $row['away_score'] . ", " . $home_team . " " . $row['home_score'];
 
-$year = "2018";
-$test = <<<HERE
-<option value="test">TEST</option>
-HERE;
+        if(is_null($row["points"])) {
+            $prediction["points"] = "-";
+        } else {
+            $prediction["points"] = $row['points'];
+        }
 
-
-$teams = "";
-foreach($results as $value) {
-    $teams .= '<option value="'.$value["tid"].'">'.$value["name"].'</option>';
+        eval('$predictions_predictions_results .= "'. $templates->get('predictions_row') .'";');
+    }
+    eval('$predictions_game_results = "' . $templates->get('predictions_list') . '";');
 }
 
-$add_team = $templates->get('predictions_add_team');
-$add_game = $templates->get('predictions_add_game');
-eval('$sections  = "' . $add_team . '\n<br /><br />\n' . $add_game . '";');
+$predictions_results = $templates->get('predictions_index');
+
+eval('$sections  = "' . $predictions_results . '";');
 
 // Using the misc_help template for the page wrapper
 eval("\$page = \"".$templates->get("misc_help")."\";");
 
 // Spit out the page to the user once we've put all the templates and vars together
 output_page($page);
+
 
 ?>

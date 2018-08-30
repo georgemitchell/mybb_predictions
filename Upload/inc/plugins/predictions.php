@@ -45,9 +45,6 @@ if(defined('IN_ADMINCP'))
 }
 else
 {
-	// Add our hello_index() function to the index_start hook so when that hook is run our function is executed
-	$plugins->add_hook('index_start', 'predictions_index');
-
 	// Add our latest_game() function to the forumdisplay_start hook so it gets executed on the main forum page
 	$plugins->add_hook('forumdisplay_end', 'predictions_latest_game');
 
@@ -201,7 +198,7 @@ LATEST_GAME;
 				</div>
 				<div class="row">
 					<div class="span12 text-center">
-						Nickname
+						<!--Nickname-->
 					</div>
 				</div>
 			</div>
@@ -233,7 +230,7 @@ LATEST_GAME;
 				</div>
 				<div class="row">
 					<div class="span12 text-center">
-						Nickname
+						<!--Nickname-->
 					</div>
 				</div>
 			</div>
@@ -260,20 +257,28 @@ THREAD_GAME;
 	$thread_game_stats = <<<THREAD_GAME_STATS
 	<div id="predictions_stats_panel">
 		<div class="row">
-			Took the Over:<br />
-			{\$stats['over']['user']} ({\$stats['over']['away']} - {\$stats['over']['home']})
+			<div class="col-md-6">{\$lang->predictions_took_the_over}:</div>
+			<div class="col-md-6" id="predictions_stats_over">
+				{\$stats['over']['user']} ({\$stats['over']['away']} - {\$stats['over']['home']})
+			</div>
 		</div>
 		<div class="row">
-			Took the Under:<br />
-			{\$stats['under']['user']} ({\$stats['under']['away']} - {\$stats['under']['home']})
+			<div class="col-md-6">{\$lang->predictions_took_the_under}:</div>
+			<div class="col-md-6" id="predictions_stats_under">
+				{\$stats['under']['user']} ({\$stats['under']['away']} - {\$stats['under']['home']})
+			</div>
 		</div>
 		<div class="row">
-			Red Hot:<br />
-			{\$stats['red_hot']['user']} ({\$stats['red_hot']['away']} - {\$stats['red_hot']['home']})
+			<div class="col-md-6">{\$lang->predictions_redhot}:</div>
+			<div class="col-md-6" id="predictions_stats_redhot">
+				{\$stats['red_hot']['user']} ({\$stats['red_hot']['away']} - {\$stats['red_hot']['home']})
+			</div>
 		</div>
 		<div class="row">
-			Shame! Shame! Shame!:<br />
-			{\$stats['shame']['user']} ({\$stats['shame']['away']} - {\$stats['shame']['home']})
+			<div class="col-md-6">{\$lang->predictions_shame}:</div>
+			<div class="col-md-6" id="predictions_stats_over">
+				{\$stats['shame']['user']} ({\$stats['shame']['away']} - {\$stats['shame']['home']})
+			</div>
 		</div>
 	</div>
 THREAD_GAME_STATS;
@@ -323,9 +328,88 @@ THREAD_GAME_FORM;
 	</div>
 PREDICTION_BOX;
 
+	$predictions_index = <<<PREDICTIONS_INDEX
+	<form action="predictions.php">
+		<input type="hidden" name="action" value="predictions_select_game" />
+		<div class="tborder">
+			<div class="thead">Select a game</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Season:</div>
+				<div class="formbit_field col-sm-10">
+					2018
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Game:</div>
+				<div class="formbit_field col-sm-10">
+					<select class="selectbox" name="game_id" value="" tabindex="1">
+						{\$predictions_game_options}
+					</select>
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<input type="submit" name="submit" class="button" value="{\$lang->predictions_see_game_results}" />
+			</div>
+		</div>
+	</form>
+	{\$predictions_update_actual_score}
+	{\$predictions_game_results}
+PREDICTIONS_INDEX;
+
+$predictions_list = <<<PREDICTIONS_LIST
+	<div class="tborder">
+		<div class="thead">Results</div>
+		<div class="trow1 rowbit">
+			<div class="formbit_label col-sm-4 strong">User</div>
+			<div class="formbit_label col-sm-4 strong">Prediction</div>
+			<div class="formbit_label col-sm-4 strong">Points</div>
+		</div>
+		{\$predictions_predictions_results}
+	</div>
+PREDICTIONS_LIST;
+
+$predictions_row = <<<PREDICTIONS_ROW
+	<div class="trow1 rowbit">
+		<div class="formbit_field col-sm-4">
+			{\$prediction['username']}
+		</div>
+		<div class="formbit_field col-sm-4">
+			{\$prediction['prediction']}
+		</div>
+		<div class="formbit_field col-sm-4">
+			{\$prediction['points']}
+		</div>
+	</div>
+PREDICTIONS_ROW;
+
+$update_actual_score = <<<UPDATE_ACTUAL
+	<form action="predictions.php" method="POST">
+		<input type="hidden" name="action" value="predictions_update_actual" />
+		<input type="hidden" name="csrf_token" value="{\$mybb->post_code}" />
+		<input type="hidden" name="game_id" value="{\$game_id}" />
+		<div class="tborder">
+			<div class="thead">Update Actual Score</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">{\$away_team}:</div>
+				<div class="formbit_field col-sm-10">
+				<input type="text" class="textbox" name="away_actual" size="4" maxlength="8" value="{\$away_actual}" tabindex="1" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">{\$home_team}:</div>
+				<div class="formbit_field col-sm-10">
+				<input type="text" class="textbox" name="home_actual" size="4" maxlength="8" value="{\$home_actual}" tabindex="2" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<input type="submit" name="submit" class="button" value="{\$lang->predictions_update_actual_score}" />
+			</div>
+		</div>
+	</form>
+UPDATE_ACTUAL;
+
 	// Add a new template (hello_index) to our global templates (sid = -1)
 	$templatearray = array(
-	'predictions_row' => "<tr><td>{$row['username']}</td><td>{$row['score']}</td></tr>",
 	'prediction_box' => $prediction_box,
 	'latest_game' => $latest_game,
 	'thread_game' => $thread_game,
@@ -334,8 +418,10 @@ PREDICTION_BOX;
 	'toggle_button' => '<a href="javascript:predictions_toggle_panel();" class="button" id="predictions_toggle_panel_button"><span id="predictions_action_text">{$predictions_action_text}</span></a>',
 	'add_team' => $add_team,
 	'add_game' => $add_game,
-	'post' => '<br /><br /><strong>{$lang->hello}:</strong><br />{$messages}',
-    'message' => '<br /> - {$message}'
+	'index' => $predictions_index,
+	'list' => $predictions_list,
+	'row' => $predictions_row,
+	'update_actual_score' => $update_actual_score
 	);
 
 	$group = array(
@@ -833,53 +919,6 @@ function predictions_settings()
 }
 
 /*
- * Displays the list of messages on index and a form to submit new messages - depending on the setting of course.
-*/
-function predictions_index()
-{
-	global $mybb;
-
-	// Only run this function is the setting is set to yes
-	if($mybb->settings['predictions_display1'] == 0)
-	{
-		return;
-	}
-
-	global $db, $lang, $templates, $predictions, $theme;
-
-	// Load our language file
-	$lang->load('predictions');
-
-	// Retreive all predictions from the database
-    $messages = '';
-    $query = $db->query("
-        SELECT u.uid, u.username, g.season, a.name, h.name, p.away_score, p.home_score, p.points
-        FROM ".TABLE_PREFIX."predictions_prediction p
-        INNER JOIN ".TABLE_PREFIX."predictions_game g ON (p.game_id=p.game_id)
-        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
-        INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
-        ORDER BY g.season DESC, p.points DESC, u.username
-    ");
-
-	while($row = $db->fetch_array($query, 'message'))
-	{
-		$messages .= eval($templates->render('predictions_predictionrow'));
-	}
-
-	// If no messages were found, display that notice.
-	if(empty($messages))
-	{
-		$message = $lang->predictions_empty;
-		$messages = eval($templates->render('predictions_predictionrow'));
-	}
-
-	// Set $hello as our template and use eval() to do it so we can have our variables parsed
-	#eval('$hello = "'.$templates->get('hello_index').'";');
-	$precitions = eval($templates->render('predictions_index'));
-}
-
-/*
  * Displays the current game if there's one pending
  */
 function predictions_latest_game()
@@ -937,8 +976,8 @@ function predictions_latest_game()
 
 	}
 
-	global $threadslist;
-	$threadslist = $latest_game."\n\n".$threadslist;
+	//global $threadslist;
+	//$threadslist = $latest_game."\n\n".$threadslist;
 }
 
 function console_log( $data ){
