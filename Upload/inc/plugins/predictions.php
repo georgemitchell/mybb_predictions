@@ -46,8 +46,9 @@ if(defined('IN_ADMINCP'))
 else
 {
 	// Add our latest_game() function to the forumdisplay_start hook so it gets executed on the main forum page
-	$plugins->add_hook('forumdisplay_end', 'predictions_latest_game');
-
+	$plugins->add_hook('forumdisplay_start', 'predictions_set_latest_game');
+	$plugins->add_hook('forumdisplay_end', 'predictions_forum_show_score');
+	$plugins->add_hook('forumdisplay_thread', 'predictions_thread_show_score');
 	$plugins->add_hook('newthread_end', 'predictions_prediction_box');
 	$plugins->add_hook('newthread_do_newthread_end', 'predictions_prediction_thread');
 	$plugins->add_hook('showthread_start', 'predictions_thread_game');
@@ -161,23 +162,15 @@ ADD_TEAM;
 ADD_GAME;
 
 	$latest_game = <<<LATEST_GAME
-	<div id="latest_game">
-		<div id="away_team">
-			<div class="predictions_logo">
-				{\$row['away_logo']}
-			</div>
-			<div>
-				{\$row['away_team']}
-			</div>
-		</div>
-		<div id="away_team">
-			<div class="predictions_logo">
-				{\$row['away_logo']}
-			</div>
-			<div>
-				{\$row['away_team']}
-			</div>
-		</div>
+	<div class="row">
+		<img style="width:24px;height:24px" src="{\$game['away_logo']}" />
+		{\$game['away_team']}
+		{\$game['away_score']}
+		vs.
+		<img style="width:24px;height:24px" src="{\$game['home_logo']}" />
+		{\$game['home_team']}
+		{\$game['home_score']}
+		<a href="/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a>
 	</div>
 LATEST_GAME;
 
@@ -203,7 +196,8 @@ LATEST_GAME;
 				</div>
 			</div>
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span>
+				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['away_actual']}</span>
 			</div>
 		</div>
 	</div>
@@ -215,7 +209,8 @@ LATEST_GAME;
 	<div class="col-md-4">
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span>
+				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['home_actual']}</span>
 			</div>
 			<div class="col-md-9">
 				<div class="row">
@@ -322,7 +317,7 @@ THREAD_GAME_FORM;
 
 	<div class="formbit_label col-sm-2 strong">{\$lang->predictions_thread_title}:</div>
 	  
-	<div class="formbit_field col-sm-10"><label><input type="checkbox" class="checkbox" name="post_prediction" value="1" {\$post_prediction_checked} /><strong>{$lang->predictions_thread_check}</strong></label><br />
+	<div class="formbit_field col-sm-10"><label><input type="checkbox" class="checkbox" name="post_prediction" value="1" {\$post_prediction_checked} /><strong>{\$lang->predictions_thread_check}</strong></label><br />
 				{\$lang->predictions_thread_games} <select name="post_gameid">{\$predictions_game_options}</select></div>
 	  
 	</div>
@@ -353,6 +348,7 @@ PREDICTION_BOX;
 		</div>
 	</form>
 	{\$predictions_update_actual_score}
+	<br />
 	{\$predictions_game_results}
 PREDICTIONS_INDEX;
 
@@ -383,6 +379,7 @@ $predictions_row = <<<PREDICTIONS_ROW
 PREDICTIONS_ROW;
 
 $update_actual_score = <<<UPDATE_ACTUAL
+	<br />
 	<form action="predictions.php" method="POST">
 		<input type="hidden" name="action" value="predictions_update_actual" />
 		<input type="hidden" name="csrf_token" value="{\$mybb->post_code}" />
@@ -627,8 +624,13 @@ UPDATE_ACTUAL;
 	// Include this file because it is where find_replace_templatesets is defined
 	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
 
-	// Edit the index template and add our variable to above {$forums}
+	// Edit the forumdisplay template and add our variable to above {$threadslist}
+	find_replace_templatesets('forumdisplay', '#'.preg_quote('{$threadslist}').'#', "{\$predictions_latest_game}\n{\$threadslist}");
+	
+	// Edit the newthread template and add our variable to below {$pollbox}
 	find_replace_templatesets('newthread', '#'.preg_quote('{$pollbox}').'#', "{\$pollbox}\n{\$predictions_prediction_box}");
+	
+	// Edit the showthread template and add our variable to below {$pollbox}
 	find_replace_templatesets('showthread', '#'.preg_quote('{$pollbox}').'#', "{\$pollbox}\n{\$predictions_thread_game}");
 }
 
@@ -644,6 +646,7 @@ function predictions_deactivate()
 	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
 
 	// remove template edits
+	find_replace_templatesets('forumdisplay', '#'.preg_quote('{$predictions_latest_game}').'#', '');
 	find_replace_templatesets('newthread', '#'.preg_quote('{$predictions_prediction_box}').'#', '');
 	find_replace_templatesets('showthread', '#'.preg_quote('{$predictions_thread_game}').'#', '');
 }
@@ -918,12 +921,47 @@ function predictions_settings()
 	$lang->load('predictions');
 }
 
+function predictions_set_latest_game() {
+	global $db, $latest_game;
+
+	$query = $db->query("
+		SELECT a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, ROUND(AVG(p.away_score)) as away_score, ROUND(AVG(p.home_score)) as home_score, COUNT(p.prediction_id) as num_predictions, g.thread_id
+		FROM ".TABLE_PREFIX."predictions_game g
+		INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
+		INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+		LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
+		WHERE g.prediction_time < NOW() and g.game_time > NOW() and g.thread_id IS NOT NULL
+		GROUP BY a.abbreviation, a.logo, h.abbreviation, h.logo, g.game_time, g.thread_id
+		ORDER BY g.game_time ASC
+		LIMIT 1
+	");
+	$row = $db->fetch_array($query);
+	if(is_null($row)) {
+		return;
+	}
+
+	$latest_game = $row;
+	if (is_null($latest_game['home_score'])) {
+		$latest_game["home_score"] = "?";
+		$latest_game["away_score"] = "?";
+	}
+}
+
+
+function predictions_thread_show_score()
+{
+	global $thread, $latest_game;
+
+	if($thread['tid'] == $latest_game['thread_id']) {
+		$thread["subject"] .= " (".$latest_game['away_team']." ".$latest_game['away_score'].", ".$latest_game['home_team']." ".$latest_game['home_score'].")";
+	}
+}
 /*
  * Displays the current game if there's one pending
  */
-function predictions_latest_game()
+function predictions_forum_show_score()
 {
-	global $settings, $foruminfo, $db;
+	global $settings, $foruminfo, $db, $latest_game;
 
 	// Only run this function is the setting is set to yes
 	if($settings['predictions_latestgame'] == 0)
@@ -937,47 +975,17 @@ function predictions_latest_game()
 	}
 	global $lang, $templates;
 
+	global $predictions_latest_game;
+
 	// Load our language file
 	if(!isset($lang->predictions))
 	{
 		$lang->load('predictions');
 	}
 
-	static $latest_game;
+	$game = $latest_game;
+	$predictions_latest_game = eval($templates->render('predictions_latest_game'));
 
-	// Only retreive the latest game from the database if it was not retrieved already
-	if(!isset($latest_game))
-	{
-		// Retreive all messages from the database
-		$query = $db->query("
-			SELECT a.name as away_name, a.logo as away_logo, h.name as home_name, h.logo as home_logo, AVG(p.away_score) as away_score, AVG(p.home_score) as home_score
-			FROM ".TABLE_PREFIX."predictions_game g
-			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
-			LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
-			WHERE g.prediction_time < NOW() and g.game_time > NOW()
-			GROUP BY a.name, a.logo, h.name, h.logo, g.game_time
-			ORDER BY g.game_time ASC
-			LIMIT 1
-		");
-		$row = $db->fetch_array($query);
-
-		if(is_null($row)) {
-			return;
-		}
-
-		$game = $row;
-		if (is_null($game['home_score'])) {
-			$game["home_score"] = "?";
-			$game["away_score"] = "?";
-		}
-		
-		$latest_game = eval($templates->render('predictions_latest_game'));
-
-	}
-
-	//global $threadslist;
-	//$threadslist = $latest_game."\n\n".$threadslist;
 }
 
 function console_log( $data ){
@@ -1082,7 +1090,7 @@ function predictions_prediction_box()
 			FROM ".TABLE_PREFIX."predictions_game g
 			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
 			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
-			WHERE g.prediction_time < NOW() and g.game_time > NOW()
+			WHERE g.prediction_time < NOW() and g.game_time > NOW() AND g.thread_id IS NULL
 			ORDER BY g.game_time ASC
 		");
 		$predictions_game_options = "";
@@ -1246,7 +1254,7 @@ function predictions_thread_game()
 	{
 		// Retreive the game for the current thread
 		$query = $db->query("
-			SELECT g.game_id, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
+			SELECT g.game_id, g.home_score as home_actual, g.away_score as away_actual, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
 			FROM ".TABLE_PREFIX."predictions_game g
 			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
 			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
