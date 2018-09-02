@@ -950,11 +950,68 @@ function predictions_set_latest_game() {
 
 function predictions_thread_show_score()
 {
-	global $thread, $latest_game;
+	global $thread, $latest_game, $tids, $db;
 
-	if($thread['tid'] == $latest_game['thread_id']) {
-		$thread["subject"] .= " (".$latest_game['away_team']." ".$latest_game['away_score'].", ".$latest_game['home_team']." ".$latest_game['home_score'].")";
+	global $thread_games;
+	
+	if(!isset($thread_games)) {
+		$query = $db->query("
+		select * from(
+			select g.thread_id, g.game_id, round(avg(p.away_score)) as away_score, a.abbreviation as away_team, round(avg(p.home_score)) as home_score, h.abbreviation as home_team, null as score, null as winner
+			from mybb_predictions_prediction p
+			inner join mybb_predictions_game g on g.game_id = p.game_id and p.points is null
+			inner join mybb_predictions_team a on g.away_team_id = a.team_id
+			inner join mybb_predictions_team h on g.home_team_id = h.team_id
+			group by g.game_id, g.thread_id, a.abbreviation, h.abbreviation
+			UNION 
+			select g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation as away_team, h.abbreviation as home_team, max(p.points) as score, u.username as winner
+			from mybb_predictions_prediction p
+			inner join mybb_predictions_game g on g.game_id = p.game_id and p.points is not null
+			inner join mybb_users u on p.user_id = u.uid
+			inner join mybb_predictions_team a on g.away_team_id = a.team_id
+			inner join mybb_predictions_team h on g.home_team_id = h.team_id
+			group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username) as raw
+		WHERE thread_id in (" . $tids . ")
+		");
+		global $thread_games;
+		$thread_games = array();
+		while($row = $db->fetch_array($query)) {
+			if(!array_key_exists($row['thread_id'], $thread_games)) {
+				$thread_games[$row['thread_id']] = array("winners" => array());
+			}
+			if(!is_null($row['winner'])) {
+				array_push($thread_games[$row['thread_id']]['winners'], $row['winner']);
+			}
+			$thread_games[$row['thread_id']]['away_score'] = $row['away_score'];
+			$thread_games[$row['thread_id']]['away_team'] = $row['away_team'];
+			$thread_games[$row['thread_id']]['home_score'] = $row['home_score'];
+			$thread_games[$row['thread_id']]['home_team'] = $row['home_team'];
+		}
 	}
+
+	if(array_key_exists($thread['tid'], $thread_games)) {
+		$extra_thread_title = "";
+		$thread_game_info = $thread_games[$thread['tid']];
+		if (count($thread_game_info["winners"]) > 1) {
+			$first = true;
+			$extra_thread_title = " (winners: ";
+			foreach($thread_game_info["winners"] as $winner) {
+				if($first) {
+					$extra_thread_title .= $winner;
+					$first = false;
+				} else {
+					$extra_thread_title .= ", " . $winner;
+				}
+			}
+			$extra_thread_title .= ")";
+		} else if (count($thread_game_info["winners"]) > 0) {
+			$extra_thread_title = " (winner: " . $thread_game_info['winners'][0] . ")";
+		} else {
+			$extra_thread_title = " (".$thread_game_info['away_team']." ".$thread_game_info['away_score'].", ".$thread_game_info['home_team']." ".$thread_game_info['home_score'].")";
+		}
+		$thread["subject"] .= $extra_thread_title;
+	}
+	
 }
 /*
  * Displays the current game if there's one pending
@@ -1254,7 +1311,7 @@ function predictions_thread_game()
 	{
 		// Retreive the game for the current thread
 		$query = $db->query("
-			SELECT g.game_id, g.home_score as home_actual, g.away_score as away_actual, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
+			SELECT g.game_id, CASE WHEN g.game_time > NOW() THEN true ELSE false END AS is_predictable, g.home_score as home_actual, g.away_score as away_actual, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
 			FROM ".TABLE_PREFIX."predictions_game g
 			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
 			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
@@ -1286,8 +1343,8 @@ function predictions_thread_game()
 		$game["home_score"] = $stats["home_avg"];
 		$game["away_score"] = $stats["away_avg"];
 
-		if($user_id == 0) {
-			// no need to have a predictions panel as anonymous users can't make predictions
+		if($user_id == 0 || !$game["is_predictable"]) {
+			// no need to have a predictions panel as anonymous users or games in the past can't make predictions
 			$predictions_toggle_button = "";
 			$predictions_predict_panel = "";
 		} else {
@@ -1302,8 +1359,6 @@ function predictions_thread_game()
 
 			// render our form
 			$existing_prediction = $stats["user_prediction"];
-			console_log("hi");
-			console_log($existing_prediction);
 			$predictions_predict_panel = eval($templates->render('predictions_thread_game_form'));
 
 		}
