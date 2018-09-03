@@ -1453,8 +1453,11 @@ function predictions_thread_game()
 			$.post("/xmlhttp.php", post_data, function( data ) {
 				$("#predictions_thread_game_away_score").text(data["away_avg"]);
 				$("#predictions_thread_game_home_score").text(data["home_avg"]);
-				console.log(data);
-				if("stats_html" in data) {
+				if("error" in data) {
+					$("#predictions_stats_panel").replaceWith(data["error"]);
+					$("#predictions_toggle_panel_button").hide();
+				}
+				else if("stats_html" in data) {
 					$("#predictions_stats_panel").replaceWith(data["stats_html"]);
 					$("#predictions_toggle_panel_button").text("Update Prediction");
 				} else {
@@ -1498,6 +1501,7 @@ function predictions_ajax_action()
 {
 	global $mybb, $charset, $db, $templates;
 
+	$stats = null;
     if($mybb->get_input('action') == 'predictions_make_prediction')
     {
 		if($mybb->request_method != 'post') {
@@ -1508,40 +1512,50 @@ function predictions_ajax_action()
 
 		$existing_prediction_id = $mybb->get_input("prediction_id");
 		
-		$args = array(
-			'game_id' => $mybb->get_input('game_id'),
-			'user_id' => $mybb->get_input('user_id'),
-			'home_score' => $mybb->get_input('home_score'),
-			'away_score' => $mybb->get_input('away_score')
-		);
+		// Update or create template group:
+		$query = $db->query("select case when game_time > NOW() then true else false end as is_eligible from mybb_predictions_game where game_id=".$mybb->get_input('game_id'));
 
-		if($mybb->get_input('home_nickname') != "") {
-			$args['home_nickname'] = $mybb->get_input('home_nickname');
-		}
-		if($mybb->get_input('away_nickname') != "") {
-			$args['away_nickname'] = $mybb->get_input('away_nickname');
-		}
-
-		if($existing_prediction_id == "") {
-			$db->insert_query('predictions_prediction', $args);
-		} else {
-			$db->update_query('predictions_prediction', $args, "prediction_id=".$existing_prediction_id);
-		}
+		if($db->fetch_field($query, 'is_eligible'))
+		{
+			$args = array(
+				'game_id' => $mybb->get_input('game_id'),
+				'user_id' => $mybb->get_input('user_id'),
+				'home_score' => $mybb->get_input('home_score'),
+				'away_score' => $mybb->get_input('away_score')
+			);
 	
-		$stanford_id = 151;
-		$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id);
-
-		if($stats['count'] == 1) {
-			global $lang;
-			if(!isset($lang->predictions))
-			{
-				$lang->load('predictions');
+			if($mybb->get_input('home_nickname') != "") {
+				$args['home_nickname'] = $mybb->get_input('home_nickname');
 			}
-
-			$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
-			$stats["stats_html"] = $predictions_stats_panel;
-		}
+			if($mybb->get_input('away_nickname') != "") {
+				$args['away_nickname'] = $mybb->get_input('away_nickname');
+			}
+	
+			if($existing_prediction_id == "") {
+				$db->insert_query('predictions_prediction', $args);
+			} else {
+				$db->update_query('predictions_prediction', $args, "prediction_id=".$existing_prediction_id);
+			}
 		
+			$stanford_id = 151;
+			$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id);
+	
+			if($stats['count'] == 1) {
+				global $lang;
+				if(!isset($lang->predictions))
+				{
+					$lang->load('predictions');
+				}
+	
+				$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
+				$stats["stats_html"] = $predictions_stats_panel;
+			}
+		}
+		else
+		{
+			$stats["error"] = "Too late!  This game started in the past.";
+		}
+
         header("Content-type: application/json; charset={$charset}");
         echo json_encode($stats);
         exit;
