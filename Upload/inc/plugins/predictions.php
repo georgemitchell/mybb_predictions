@@ -947,6 +947,35 @@ function predictions_set_latest_game() {
 	}
 }
 
+class ThreadScore {
+    var $thread_id;
+    var $game_id;
+	var $away_score;
+	var $home_score;
+	var $away_team;
+	var $home_team;
+	var $winners;
+	var $winning_points;
+
+    function __construct($row) {
+		$this->prediction_id = $row['thread_id'];
+		$this->game_id = $row['game_id'];
+		$this->away_score = $row['away_score'];
+		$this->home_score = $row['home_score'];
+		$this->away_team = $row['away_team'];
+		$this->home_team = $row['home_team'];
+		$this->winners = array();
+		$this->winning_points = 0;
+    }
+
+    function add_score($score) {
+		$int_score = (int)$score['score'];
+		if ($int_score >= $this->winning_points) {
+			array_push($this->winners, $score['winner']);
+			$this->winning_points = $int_score;
+		}
+    }
+}
 
 function predictions_thread_show_score()
 {
@@ -972,30 +1001,27 @@ function predictions_thread_show_score()
 			inner join mybb_predictions_team h on g.home_team_id = h.team_id
 			group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username) as raw
 		WHERE thread_id in (" . $tids . ")
+		ORDER BY thread_id, score desc
 		");
 		global $thread_games;
 		$thread_games = array();
 		while($row = $db->fetch_array($query)) {
 			if(!array_key_exists($row['thread_id'], $thread_games)) {
-				$thread_games[$row['thread_id']] = array("winners" => array());
+				$thread_games[$row['thread_id']] = new ThreadScore($row);
 			}
 			if(!is_null($row['winner'])) {
-				array_push($thread_games[$row['thread_id']]['winners'], $row['winner']);
+				$thread_games[$row['thread_id']]->add_score($row);
 			}
-			$thread_games[$row['thread_id']]['away_score'] = $row['away_score'];
-			$thread_games[$row['thread_id']]['away_team'] = $row['away_team'];
-			$thread_games[$row['thread_id']]['home_score'] = $row['home_score'];
-			$thread_games[$row['thread_id']]['home_team'] = $row['home_team'];
 		}
 	}
 
 	if(array_key_exists($thread['tid'], $thread_games)) {
 		$extra_thread_title = "";
 		$thread_game_info = $thread_games[$thread['tid']];
-		if (count($thread_game_info["winners"]) > 1) {
+		if (count($thread_game_info->winners) > 1) {
 			$first = true;
 			$extra_thread_title = " (winners: ";
-			foreach($thread_game_info["winners"] as $winner) {
+			foreach($thread_game_info->winners as $winner) {
 				if($first) {
 					$extra_thread_title .= $winner;
 					$first = false;
@@ -1004,10 +1030,10 @@ function predictions_thread_show_score()
 				}
 			}
 			$extra_thread_title .= ")";
-		} else if (count($thread_game_info["winners"]) > 0) {
-			$extra_thread_title = " (winner: " . $thread_game_info['winners'][0] . ")";
+		} else if (count($thread_game_info->winners) > 0) {
+			$extra_thread_title = " (winner: " . $thread_game_info->winners[0] . ")";
 		} else {
-			$extra_thread_title = " (".$thread_game_info['away_team']." ".$thread_game_info['away_score'].", ".$thread_game_info['home_team']." ".$thread_game_info['home_score'].")";
+			$extra_thread_title = " (".$thread_game_info->away_team." ".$thread_game_info->away_score.", ".$thread_game_info->home_team." ".$thread_game_info->home_score.")";
 		}
 		$thread["subject"] .= $extra_thread_title;
 	}
