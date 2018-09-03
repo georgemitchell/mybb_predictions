@@ -987,18 +987,18 @@ function predictions_thread_show_score()
 		$query = $db->query("
 		select * from(
 			select g.thread_id, g.game_id, round(avg(p.away_score)) as away_score, a.abbreviation as away_team, round(avg(p.home_score)) as home_score, h.abbreviation as home_team, null as score, null as winner
-			from mybb_predictions_prediction p
-			inner join mybb_predictions_game g on g.game_id = p.game_id and p.points is null
-			inner join mybb_predictions_team a on g.away_team_id = a.team_id
-			inner join mybb_predictions_team h on g.home_team_id = h.team_id
+			from ".TABLE_PREFIX."predictions_prediction p
+			inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is null
+			inner join ".TABLE_PREFIX."predictions_team a on g.away_team_id = a.team_id
+			inner join ".TABLE_PREFIX."predictions_team h on g.home_team_id = h.team_id
 			group by g.game_id, g.thread_id, a.abbreviation, h.abbreviation
 			UNION 
 			select g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation as away_team, h.abbreviation as home_team, max(p.points) as score, u.username as winner
-			from mybb_predictions_prediction p
-			inner join mybb_predictions_game g on g.game_id = p.game_id and p.points is not null
-			inner join mybb_users u on p.user_id = u.uid
-			inner join mybb_predictions_team a on g.away_team_id = a.team_id
-			inner join mybb_predictions_team h on g.home_team_id = h.team_id
+			from ".TABLE_PREFIX."predictions_prediction p
+			inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is not null
+			inner join ".TABLE_PREFIX."users u on p.user_id = u.uid
+			inner join ".TABLE_PREFIX."predictions_team a on g.away_team_id = a.team_id
+			inner join ".TABLE_PREFIX."predictions_team h on g.home_team_id = h.team_id
 			group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username) as raw
 		WHERE thread_id in (" . $tids . ")
 		ORDER BY thread_id, score desc
