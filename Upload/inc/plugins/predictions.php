@@ -1451,14 +1451,18 @@ function predictions_thread_game()
 			$("#predictions_thread_game_interactive").hide();
 			$("#predictions_thread_game_loading").show();
 			$.post("/xmlhttp.php", post_data, function( data ) {
-				console.log(data);
-				console.log($("#predictions_thread_game_away_score"));
 				$("#predictions_thread_game_away_score").text(data["away_avg"]);
 				$("#predictions_thread_game_home_score").text(data["home_avg"]);
-				update_statline(data, "#predictions_stats_over", "over");
-				update_statline(data, "#predictions_stats_under", "under");
-				update_statline(data, "#predictions_stats_redhot", "red_hot");
-				update_statline(data, "#predictions_stats_shame", "shame");
+				console.log(data);
+				if("stats_html" in data) {
+					$("#predictions_stats_panel").replaceWith(data["stats_html"]);
+					$("#predictions_toggle_panel_button").text("Update Prediction");
+				} else {
+					update_statline(data, "#predictions_stats_over", "over");
+					update_statline(data, "#predictions_stats_under", "under");
+					update_statline(data, "#predictions_stats_redhot", "red_hot");
+					update_statline(data, "#predictions_stats_shame", "shame");
+				}
 				$("#predictions_thread_game_loading").hide();
 				$("#predictions_thread_game_interactive").show();
 				predictions_toggle_panel();
@@ -1492,7 +1496,7 @@ function predictions_ajax()
 
 function predictions_ajax_action()
 {
-	global $mybb, $charset, $db;
+	global $mybb, $charset, $db, $templates;
 
     if($mybb->get_input('action') == 'predictions_make_prediction')
     {
@@ -1527,6 +1531,17 @@ function predictions_ajax_action()
 		$stanford_id = 151;
 		$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id);
 
+		if($stats['count'] == 1) {
+			global $lang;
+			if(!isset($lang->predictions))
+			{
+				$lang->load('predictions');
+			}
+
+			$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
+			$stats["stats_html"] = $predictions_stats_panel;
+		}
+		
         header("Content-type: application/json; charset={$charset}");
         echo json_encode($stats);
         exit;
