@@ -170,7 +170,7 @@ ADD_GAME;
 		<img style="width:24px;height:24px" src="{\$game['home_logo']}" />
 		{\$game['home_team']}
 		{\$game['home_score']}
-		<a href="/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a>
+		<a href="{\$mybb->settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a>
 	</div>
 LATEST_GAME;
 
@@ -180,52 +180,46 @@ LATEST_GAME;
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-9">
 				<div class="row">
-					<div class="span12 text-center">
+					<div class="span12 text-center team_name" data="away">
 						{\$game['away_name']}
 					</div>
 				</div>
 				<div class="row">
 					<div class="span12 text-center">
-						<img src="{\$game['away_logo']}" />
-					</div>
-				</div>
-				<div class="row">
-					<div class="span12 text-center">
-						<!--Nickname-->
+						<img src="{\$mybb->asset_url}{\$game['away_logo']}" />
 					</div>
 				</div>
 			</div>
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['away_actual']}</span>
+				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{$game['away_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{$game['away_actual']}</span>
 			</div>
 		</div>
 	</div>
 	<div class="col-md-1 text-center">
-		<div style="display: flex;justify-content:  center;align-items: center;">
+		<div class="row">
+			<div class="span12 text-center team_name" data="user">&nbsp;
+			</div>
+		</div>
+		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<span  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">Vs.</span>
 		</div>
 	</div>
 	<div class="col-md-4">
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['home_actual']}</span>
+				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{$game['home_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{$game['home_actual']}</span>
 			</div>
 			<div class="col-md-9">
 				<div class="row">
-					<div class="span12 text-center">
+					<div class="span12 text-center team_name" data="home">
 						{\$game['home_name']}
 					</div>
 				</div>
 				<div class="row">
 					<div class="span12 text-center">
-						<img src="{\$game['home_logo']}" />
-					</div>
-				</div>
-				<div class="row">
-					<div class="span12 text-center">
-						<!--Nickname-->
+						<img src="{\$mybb->asset_url}{\$game['home_logo']}" />
 					</div>
 				</div>
 			</div>
@@ -242,11 +236,11 @@ LATEST_GAME;
 		</div>
 		</div>
 		<div id="predictions_thread_game_loading" style="display: none">
-			<img src="/images/predictions/ajax-loader.gif" />
+			<img src="{\$mybb->asset_url}/images/predictions/ajax-loader.gif" />
 		</div>
 	</div>
 </div>
-{\$predictions_predict_script}
+{$predictions_predict_script}
 THREAD_GAME;
 
 	$thread_game_stats = <<<THREAD_GAME_STATS
@@ -380,10 +374,11 @@ PREDICTIONS_ROW;
 
 $update_actual_score = <<<UPDATE_ACTUAL
 	<br />
-	<form action="predictions.php" method="POST">
+	<form action="{\$mybb->settings['bburl']}/predictions.php" method="POST">
 		<input type="hidden" name="action" value="predictions_update_actual" />
 		<input type="hidden" name="csrf_token" value="{\$mybb->post_code}" />
 		<input type="hidden" name="game_id" value="{\$game_id}" />
+		<input type="hidden" name="team_is_home" value={\$team_is_home} />
 		<div class="tborder">
 			<div class="thead">Update Actual Score</div>
 			<div class="trow1 rowbit">
@@ -1243,10 +1238,10 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 			$user_prediction = $prediction;
 
 		}
-		$home_total += $prediction['home_score'];
-		$away_total += $prediction['away_score'];
-		$total = $prediction['home_score'] + $prediction['away_score'];
-		if($total > $max_home) {
+		$home_total += (int)$prediction['home_score'];
+		$away_total += (int)$prediction['away_score'];
+		$total = (int)$prediction['home_score'] + (int)$prediction['away_score'];
+		if($total > $max) {
 			$max = $total;
 			$max_details = array(
 				"user" => $prediction['username'],
@@ -1301,7 +1296,8 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 		"away_avg" => $away_avg,
 		"over" => $max_details,
 		"under" => $min_details,
-		"user_prediction" => $user_prediction
+		"user_prediction" => $user_prediction,
+		"nicknames" => $nicknames
 	);
 
 	if($is_at_home) {
@@ -1389,9 +1385,42 @@ function predictions_thread_game()
 
 		}
 
+		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": ""}';
+		foreach($stats["nicknames"] as &$nickname) {
+			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '"}';
+		}
+		$nicknames_js .= '];';
 		// This Javascript will handle the client side validation and ajax submission
 		$predictions_predict_script = <<<PREDICT_SCRIPT
 	<script language="javascript">
+	$nicknames_js
+	var nickname_index = 0;
+
+	$(document).ready(function(){
+		if(nicknames.length > 1) {
+			setTimeout(next_nickname, 4000);
+		}
+	});
+
+	function next_nickname() {
+		nickname_index++;
+		if(nickname_index >= nicknames.length) {
+			nickname_index = 0;
+		}
+		$(".team_name").fadeOut(1000, function() {
+			if(nicknames[nickname_index][$(this).attr("data")] == "") {
+				$(this).html("&nbsp;");
+			} else {
+				$(this).text(nicknames[nickname_index][$(this).attr("data")]);
+			}
+			$(this).fadeIn(1000, function() {
+				if($(this).attr("data") == "user") {
+					setTimeout(next_nickname, 4000);
+				}
+			});
+		});
+	}
+
 	function predictions_toggle_panel() {
 		if ($("#predictions_predict_panel").is(":hidden")) {
 			$("#predictions_stats_panel").hide();
@@ -1450,7 +1479,7 @@ function predictions_thread_game()
 			};
 			$("#predictions_thread_game_interactive").hide();
 			$("#predictions_thread_game_loading").show();
-			$.post("/xmlhttp.php", post_data, function( data ) {
+			$.post("{$mybb->settings['bburl']}/xmlhttp.php", post_data, function( data ) {
 				$("#predictions_thread_game_away_score").text(data["away_avg"]);
 				$("#predictions_thread_game_home_score").text(data["home_avg"]);
 				if("error" in data) {
@@ -1525,10 +1554,10 @@ function predictions_ajax_action()
 			);
 	
 			if($mybb->get_input('home_nickname') != "") {
-				$args['home_nickname'] = $mybb->get_input('home_nickname');
+				$args['home_nickname'] = $db->escape_string($mybb->get_input('home_nickname'));
 			}
 			if($mybb->get_input('away_nickname') != "") {
-				$args['away_nickname'] = $mybb->get_input('away_nickname');
+				$args['away_nickname'] = $db->escape_string($mybb->get_input('away_nickname'));
 			}
 	
 			if($existing_prediction_id == "") {

@@ -26,7 +26,7 @@ class Score {
         $home_margin = abs($home_actual - $home);
         $away_margin = abs($away_actual - $away);
         if($home_actual > $away_actual) {
-            $this->picked_winnder = ($home > $away);
+            $this->picked_winner = ($home > $away);
         } else {
             $this->picked_winner = ($away > $home);
         }
@@ -45,11 +45,7 @@ class Score {
         if($this->picked_winner && $other->picked_winner) {
             if($this->delta == $other->delta) {
                 if($this->num_exact == $other->num_exact) {
-                    if($this->$largest_margin == $other->largest_margin) {
-                        return 0;
-                    } else {
-                        return ($this->largest_margin < $other->largest_margin) ? -1 : 1;
-                    }
+                    return 0;
                 } else {
                     return ($this->num_exact > $other->num_exact) ? -1 : 1;
                 }
@@ -68,7 +64,7 @@ function score_compare($a, $b) {
     return $a->compare($b);
 }
 
-function calculate_points($game_id, $away_actual, $home_actual) {
+function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_win) {
     global $db;
 
     $scores = array();
@@ -85,7 +81,6 @@ function calculate_points($game_id, $away_actual, $home_actual) {
     }
 
     usort($scores, "score_compare");
-
     // Total number of points are calcuated by taking the number of scores 
     $current_points = count($scores);
     $previous = null;
@@ -105,6 +100,14 @@ function calculate_points($game_id, $away_actual, $home_actual) {
 
     // Update the DB with the scores
     foreach($scores as &$score) {
+        if($score->num_exact >= 2) {
+            $score->points += 10;
+        } else if($score->num_exact == 1) {
+            $score->points += 3;
+        }
+        if(($score->picked_winner && !$did_stanford_win) || (!$score->picked_winner && $did_stanford_win)) {
+            $score->points -= 10;
+        }
         $db->update_query("predictions_prediction", array("points" => $score->points), "prediction_id=".$score->prediction_id);
     }
     
@@ -123,7 +126,8 @@ if($mybb->get_input('action') == 'predictions_update_actual') {
 			'away_score' => $mybb->get_input('away_actual')
         );
         $db->update_query('predictions_game', $args, "game_id=".$game_id);
-        calculate_points($game_id, $away_actual, $home_actual);
+        $did_stanford_win = ($mybb->get_input('team_is_home')) ? $args['home_score'] > $args['away_score'] : $args['home_score'] < $args['away_score'];
+        calculate_points($game_id, $args['away_score'], $args['home_score'], $did_stanford_win);
     }
 }
 
@@ -149,7 +153,7 @@ $predictions_game_results="";
 $predictions_update_actual_score = "";
 if($game_id != "") {
     $query = $db->query("
-        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_score as home_actual, g.away_score as away_actual
+        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_team_id, g.home_score as home_actual, g.away_score as away_actual
         FROM ".TABLE_PREFIX."predictions_prediction p
         INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
         INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
@@ -162,12 +166,14 @@ if($game_id != "") {
     $home_team = 'Home';
     $away_team = 'Away';
     $predictions_predictions_results = "";
+    $stanford_id = 151;
     while($row = $db->fetch_array($query)) {
         $home_team = $row['home_team'];
         $away_team = $row['away_team'];
         if($first) {
             $home_actual = $row['home_actual'];
             $away_actual = $row['away_actual'];
+            $team_is_home = $row['home_team_id'] == $stanford_id;
             if($mybb->user['ismoderator']) {
                 eval('$predictions_update_actual_score = "' . $templates->get('predictions_update_actual_score') . '";');
             }
