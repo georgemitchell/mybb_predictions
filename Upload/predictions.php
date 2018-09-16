@@ -151,7 +151,9 @@ while($row = $db->fetch_array($query)) {
 
 $predictions_game_results="";
 $predictions_update_actual_score = "";
+$overall_standings_link = "";
 if($game_id != "") {
+    $overall_standings_link = "<a href=\"{$mybb->settings['bburl']}/predictions.php\" class=\"button\">See Overall Standings</a>";
     $query = $db->query("
         SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_team_id, g.home_score as home_actual, g.away_score as away_actual
         FROM ".TABLE_PREFIX."predictions_prediction p
@@ -167,6 +169,7 @@ if($game_id != "") {
     $away_team = 'Away';
     $predictions_predictions_results = "";
     $stanford_id = 151;
+    $predictions_results_columns = null;
     while($row = $db->fetch_array($query)) {
         $home_team = $row['home_team'];
         $away_team = $row['away_team'];
@@ -179,28 +182,50 @@ if($game_id != "") {
             }
             $first = false;
         }
-        $prediction = array(
-            "username" => $row['username'],
-            "timestamp" => $row["timestamp"]
-        );
+        $prediction = array($row['username'], null, null, $row["timestamp"]);
         if(!is_null($row['home_nickname'])) {
             $home_team = $row['home_nickname'];
         }
         if(!is_null($row['away_nickname'])) {
             $away_team = $row['away_nickname'];
         }
-        $prediction["prediction"] = $away_team . " " . $row['away_score'] . ", " . $home_team . " " . $row['home_score'];
+        $prediction[1] = $away_team . " " . $row['away_score'] . ", " . $home_team . " " . $row['home_score'];
 
         if(is_null($row["points"])) {
-            $prediction["points"] = "-";
+            $prediction[2] = "-";
         } else {
-            $prediction["points"] = $row['points'];
+            $prediction[2] = $row['points'];
         }
 
+        $predictions_results_columns = array(
+            "Username",
+            "Prediction",
+            "Points",
+            "Timestamp"
+        );
         eval('$predictions_predictions_results .= "'. $templates->get('predictions_row') .'";');
     }
-    eval('$predictions_game_results = "' . $templates->get('predictions_list') . '";');
+} else {
+    $query = $db->query("
+        SELECT u.username, SUM(p.points) as points, COUNT(p.prediction_id) as num_games
+        FROM ".TABLE_PREFIX."predictions_prediction p
+        INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
+        INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
+        WHERE g.season=2018
+        GROUP BY username
+        ORDER BY points desc, num_games desc, username
+    ");
+    $predictions_results_columns = array(
+        "Username",
+        "Total Points",
+        "Num Games Played"
+    );
+    while($row = $db->fetch_array($query)) {
+        $prediction = array($row['username'], $row['points'], $row['num_games']);
+        eval('$predictions_predictions_results .= "'. $templates->get('predictions_row') .'";');
+    }
 }
+eval('$predictions_game_results = "' . $templates->get('predictions_list') . '";');
 
 $predictions_results = $templates->get('predictions_index');
 

@@ -347,29 +347,29 @@ PREDICTION_BOX;
 PREDICTIONS_INDEX;
 
 $predictions_list = <<<PREDICTIONS_LIST
-	<div class="tborder">
-		<div class="thead">Results</div>
-		<div class="trow1 rowbit">
-			<div class="formbit_label col-sm-4 strong">User</div>
-			<div class="formbit_label col-sm-4 strong">Prediction</div>
-			<div class="formbit_label col-sm-4 strong">Points</div>
-		</div>
-		{\$predictions_predictions_results}
-	</div>
+<div class="tborder">
+<div class="thead">Results</div>
+<div class="trow1 rowbit">
+	<div class="formbit_label col-sm-4 strong">{\$predictions_results_columns[0]}</div>
+	<div class="formbit_label col-sm-4 strong">{\$predictions_results_columns[1]}</div>
+	<div class="formbit_label col-sm-4 strong">{\$predictions_results_columns[2]}</div>
+</div>
+{\$predictions_predictions_results}
+</div>
 PREDICTIONS_LIST;
 
 $predictions_row = <<<PREDICTIONS_ROW
-	<div class="trow1 rowbit">
-		<div class="formbit_field col-sm-4">
-			{\$prediction['username']}
-		</div>
-		<div class="formbit_field col-sm-4">
-			{\$prediction['prediction']}
-		</div>
-		<div class="formbit_field col-sm-4">
-			{\$prediction['points']}
-		</div>
+<div class="trow1 rowbit">
+	<div class="formbit_field col-sm-4">
+		{\$prediction[0]}
 	</div>
+	<div class="formbit_field col-sm-4">
+		{\$prediction[1]}
+	</div>
+	<div class="formbit_field col-sm-4">
+		{\$prediction[2]}
+	</div>
+</div>
 PREDICTIONS_ROW;
 
 $update_actual_score = <<<UPDATE_ACTUAL
