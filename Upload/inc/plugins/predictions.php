@@ -56,7 +56,7 @@ else
 	$plugins->add_hook('xmlhttp', 'predictions_ajax_action');
 
 	// Add our hello_new() function to the misc_start hook so our misc.php?action=hello inserts a new message into the created DB table.
-	$plugins->add_hook('misc_start', 'predictions_new');
+	//$plugins->add_hook('misc_start', 'predictions_new');
 }
 
 function predictions_info()
@@ -1567,7 +1567,7 @@ function predictions_ajax_action()
 			}
 		
 			$stanford_id = 151;
-			$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id);
+			$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id == $game["home_id"]);
 	
 			if($stats['count'] == 1) {
 				global $lang;
