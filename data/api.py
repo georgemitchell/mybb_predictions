@@ -28,3 +28,7 @@ class CollegeFootballAPI(object):
     def get_teams(self, conference):
         url = "{}teams?conference={}".format(self.BASE_URI, conference)
         return self.query(url)
+
+    def get_games(self, team, year=2019, season_type="regular"):
+        url = "{}games?year={}&seasonType={}&team={}".format(self.BASE_URI, year, season_type, team)
+        return self.query(url)

@@ -140,8 +140,8 @@ ADD_TEAM;
 					<select class="selectbox" name="season" value="" tabindex="1">
 						<option value="2016">2016</option>
 						<option value="2017">2017</option>
-						<option value="2018" selected>2018</option>
-						<option value="2019">2019</option>
+						<option value="2018">2018</option>
+						<option value="2019" selected>2019</option>
 						<option value="2020">2020</option>
 					</select>
 				</div>
@@ -175,6 +175,7 @@ ADD_GAME;
 LATEST_GAME;
 
 	$thread_game = <<<THREAD_GAME
+
 	<div class="row">
 	<div class="col-md-4">
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
@@ -202,7 +203,7 @@ LATEST_GAME;
 			</div>
 		</div>
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
-			<span  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">Vs.</span>
+			<span  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">vs.</span>
 		</div>
 	</div>
 	<div class="col-md-4">
@@ -240,7 +241,7 @@ LATEST_GAME;
 		</div>
 	</div>
 </div>
-{$predictions_predict_script}
+{\$predictions_predict_script}
 THREAD_GAME;
 
 	$thread_game_stats = <<<THREAD_GAME_STATS
@@ -325,7 +326,7 @@ PREDICTION_BOX;
 			<div class="trow1 rowbit">
 				<div class="formbit_label col-sm-2 strong">Season:</div>
 				<div class="formbit_field col-sm-10">
-					2018
+					2019
 				</div>
 			</div>
 			<div class="trow1 rowbit">
@@ -735,14 +736,15 @@ function predictions_install()
 				break;
 			default:
 				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_team (
-					team_id int unsigned NOT NULL auto_increment,
+					school varchar(64) NOT NULL,
 					conference_id INTEGER NOT NULL,
-					name varchar(64) NOT NULL,
 					abbreviation varchar(8) NOT NULL,
 					mascot varchar(64) NOT NULL,
+					division varchar(32) NULL,
                     logo varchar(256) NOT NULL,
-                    color varchar(8) NOT NULL,
-					PRIMARY KEY (team_id),
+					color varchar(8) NULL,
+					alt_color varchar(8) NULL,
+					PRIMARY KEY (school),
 					FOREIGN KEY (conference_id)
 						REFERENCES ".TABLE_PREFIX."predictions_conference(conference_id)
 				) ENGINE=MyISAM{$collation};");
@@ -766,22 +768,22 @@ function predictions_install()
 					gid INTEGER PRIMARY KEY,
 					tid INTEGER NULL,
                     season INTEGER NOT NULL,
-                    home_tid INTEGER NOT NULL,
-                    away_tid INTEGER NOT NULL,
+                    home_school VARCHAR(64) NOT NULL,
+                    away_school VARCHAR(64) NOT NULL,
                     prediction_time DATETIME_INT NOT NULL,
 					game_time DATETIME_INT NOT NULL,
 					FOREIGN KEY(tid) REFERENCES ".TABLE_PREFIX."posts(tid),
-                    FOREIGN KEY(home_tid) REFERENCES ".TABLE_PREFIX."predictions_team(tid),
-                    FOREIGN KEY(away_tid) REFERENCES ".TABLE_PREFIX."predictions_team(tid)
+                    FOREIGN KEY(home_school) REFERENCES ".TABLE_PREFIX."predictions_team(school),
+                    FOREIGN KEY(away_school) REFERENCES ".TABLE_PREFIX."predictions_team(school)
 				);");
 				break;
 			default:
 				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_game (
-					game_id int unsigned NOT NULL auto_increment,
+					game_id bigint NOT NULL auto_increment,
 					thread_id INTEGER NULL,
 					season INTEGER NOT NULL,
-                    home_team_id INTEGER NOT NULL,
-                    away_team_id INTEGER NOT NULL,
+                    home_school VARCHAR(64) NOT NULL,
+                    away_school VARCHAR(64) NOT NULL,
                     prediction_time DATETIME NOT NULL,
 					game_time DATETIME NOT NULL,
 					home_score INTEGER NULL,
@@ -789,10 +791,10 @@ function predictions_install()
 					PRIMARY KEY (game_id),
 					FOREIGN KEY (thread_id)
 						REFERENCES ".TABLE_PREFIX."threads(tid),
-					FOREIGN KEY (home_team_id)
-						REFERENCES ".TABLE_PREFIX."predictions_team(team_id),
-					FOREIGN KEY (away_team_id)
-						REFERENCES ".TABLE_PREFIX."predictions_team(team_id)
+					FOREIGN KEY (home_school)
+						REFERENCES ".TABLE_PREFIX."predictions_team(school),
+					FOREIGN KEY (away_school)
+						REFERENCES ".TABLE_PREFIX."predictions_team(school)
 				) ENGINE=MyISAM{$collation};");
 				break;
 		}
@@ -826,7 +828,7 @@ function predictions_install()
 			default:
 				$db->write_query("CREATE TABLE ".TABLE_PREFIX."predictions_prediction (
 					prediction_id int unsigned NOT NULL auto_increment,
-					game_id INTEGER NOT NULL,
+					game_id BIGINT NOT NULL,
 					user_id INTEGER NOT NULL,
 					home_score INTEGER NOT NULL,
                     home_nickname varchar(128),
@@ -922,8 +924,8 @@ function predictions_set_latest_game() {
 	$query = $db->query("
 		SELECT a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, ROUND(AVG(p.away_score)) as away_score, ROUND(AVG(p.home_score)) as home_score, COUNT(p.prediction_id) as num_predictions, g.thread_id
 		FROM ".TABLE_PREFIX."predictions_game g
-		INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-		INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+		INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+		INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
 		LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
 		WHERE g.prediction_time < NOW() and g.game_time > NOW() and g.thread_id IS NOT NULL
 		GROUP BY a.abbreviation, a.logo, h.abbreviation, h.logo, g.game_time, g.thread_id
@@ -984,16 +986,16 @@ function predictions_thread_show_score()
 			select g.thread_id, g.game_id, round(avg(p.away_score)) as away_score, a.abbreviation as away_team, round(avg(p.home_score)) as home_score, h.abbreviation as home_team, null as score, null as winner
 			from ".TABLE_PREFIX."predictions_prediction p
 			inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is null
-			inner join ".TABLE_PREFIX."predictions_team a on g.away_team_id = a.team_id
-			inner join ".TABLE_PREFIX."predictions_team h on g.home_team_id = h.team_id
+			inner join ".TABLE_PREFIX."predictions_team a on g.away_school = a.school
+			inner join ".TABLE_PREFIX."predictions_team h on g.home_school = h.school
 			group by g.game_id, g.thread_id, a.abbreviation, h.abbreviation
 			UNION 
 			select g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation as away_team, h.abbreviation as home_team, max(p.points) as score, u.username as winner
 			from ".TABLE_PREFIX."predictions_prediction p
 			inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is not null
 			inner join ".TABLE_PREFIX."users u on p.user_id = u.uid
-			inner join ".TABLE_PREFIX."predictions_team a on g.away_team_id = a.team_id
-			inner join ".TABLE_PREFIX."predictions_team h on g.home_team_id = h.team_id
+			inner join ".TABLE_PREFIX."predictions_team a on g.away_school = a.school
+			inner join ".TABLE_PREFIX."predictions_team h on g.home_school = h.school
 			group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username) as raw
 		WHERE thread_id in (" . $tids . ")
 		ORDER BY thread_id, score desc
@@ -1164,10 +1166,10 @@ function predictions_prediction_box()
 	{
 		// Retreive eligible games
 		$query = $db->query("
-			SELECT g.game_id, a.name as away_name, h.name as home_name, g.game_time
+			SELECT g.game_id, a.school as away_name, h.school as home_name, g.game_time
 			FROM ".TABLE_PREFIX."predictions_game g
-			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
 			WHERE g.prediction_time < NOW() and g.game_time > NOW() AND g.thread_id IS NULL
 			ORDER BY g.game_time ASC
 		");
@@ -1331,12 +1333,13 @@ function predictions_thread_game()
 	// Only retreive the latest game from the database if it was not retrieved already
 	if(!isset($thread_game))
 	{
+		
 		// Retreive the game for the current thread
 		$query = $db->query("
-			SELECT g.game_id, CASE WHEN g.game_time > NOW() THEN true ELSE false END AS is_predictable, g.home_score as home_actual, g.away_score as away_actual, a.team_id as away_id, a.name as away_name, a.logo as away_logo, a.abbreviation as away_team, h.team_id as home_id, h.name as home_name, h.logo as home_logo, h.abbreviation as home_team
+			SELECT g.game_id, CASE WHEN g.game_time > NOW() THEN true ELSE false END AS is_predictable, g.home_score as home_actual, g.away_score as away_actual, a.school as away_id, a.school as away_name, a.logo as away_logo, a.abbreviation as away_team, h.school as home_id, h.school as home_name, h.logo as home_logo, h.abbreviation as home_team
 			FROM ".TABLE_PREFIX."predictions_game g
-			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
 			WHERE g.thread_id=".$thread['tid']
 		);
 		$game = $db->fetch_array($query);
@@ -1390,6 +1393,7 @@ function predictions_thread_game()
 			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '"}';
 		}
 		$nicknames_js .= '];';
+
 		// This Javascript will handle the client side validation and ajax submission
 		$predictions_predict_script = <<<PREDICT_SCRIPT
 	<script language="javascript">
@@ -1505,7 +1509,6 @@ function predictions_thread_game()
 	</script>
 PREDICT_SCRIPT;
 
-		
 
 		$thread_game = eval($templates->render('predictions_thread_game'));
 

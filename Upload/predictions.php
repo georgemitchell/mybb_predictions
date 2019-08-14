@@ -137,7 +137,7 @@ $query = $db->query("
     FROM ".TABLE_PREFIX."predictions_game g
     INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
     INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
-    WHERE g.thread_id IS NOT NULL
+    WHERE g.thread_id IS NOT NULL AND g.season=2019
     ORDER BY g.game_time ASC
 ");
 $predictions_game_options = "";
@@ -211,7 +211,7 @@ if($game_id != "") {
         FROM ".TABLE_PREFIX."predictions_prediction p
         INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
         INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
-        WHERE g.season=2018
+        WHERE g.season=2019
         GROUP BY username
         ORDER BY points desc, num_games desc, username
     ");

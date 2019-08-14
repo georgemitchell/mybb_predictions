@@ -1,6 +1,7 @@
 import json
 import random
 import time
+import os
 from api import CollegeFootballAPI
 
 def validate_conference_coverage(json_conferences, api_conferences):
@@ -67,7 +68,7 @@ def merge(json_data, output_file):
                         division=team["division"],
                         color=team["color"],
                         alt_color=team["alt_color"],
-                        logo=json_team["pic"]
+                        logo="/images/predictions/logos/{}".format(os.path.basename(json_team["pic"]))
                     ))
                     confirmed_team_set.add(team["school"])
         throttle = random.randint(4,8)
@@ -86,7 +87,7 @@ def merge(json_data, output_file):
                         conference_id=conference_lookups[conference],
                         abbreviation=json_team["abbrev"],
                         mascot=json_team["mascot"],
-                        logo=json_team["pic"]
+                        logo="/images/predictions/logos/{}".format(os.path.basename(json_team["pic"]))
                     )
                 )
     
@@ -97,5 +98,5 @@ if __name__ == "__main__":
     f = open("teams.json", "r")
     json_data = json.load(f)
     f.close()
-    merge(json_data, "test.php")
+    merge(json_data, "../Upload/admin/modules/predictions/mysql_db_inserts.php")
 
