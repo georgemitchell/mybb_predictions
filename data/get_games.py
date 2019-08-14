@@ -1,9 +1,14 @@
 from datetime import datetime, timedelta
+from dateutil import tz
 from api import CollegeFootballAPI
 
 def convert_time(time_str):
+    from_zone = tz.gettz('UTC')
+    to_zone = tz.gettz('America/New_York')
     dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
-    return dt
+    utc = dt.replace(tzinfo=from_zone)
+    eastern = utc.astimezone(to_zone)
+    return eastern
 
 if __name__ == "__main__":
     year = 2019

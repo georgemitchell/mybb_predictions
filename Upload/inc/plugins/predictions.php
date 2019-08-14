@@ -163,11 +163,11 @@ ADD_GAME;
 
 	$latest_game = <<<LATEST_GAME
 	<div class="row">
-		<img style="width:24px;height:24px" src="{\$game['away_logo']}" />
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
 		{\$game['away_team']}
 		{\$game['away_score']}
 		vs.
-		<img style="width:24px;height:24px" src="{\$game['home_logo']}" />
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
 		{\$game['home_team']}
 		{\$game['home_score']}
 		<a href="{\$mybb->settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a>
