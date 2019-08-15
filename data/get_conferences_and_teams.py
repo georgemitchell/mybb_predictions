@@ -4,6 +4,7 @@ import time
 import os
 from api import CollegeFootballAPI
 
+
 def validate_conference_coverage(json_conferences, api_conferences):
     new_id = 500
     missing = []
@@ -15,7 +16,7 @@ def validate_conference_coverage(json_conferences, api_conferences):
     return missing
 
 def merge(json_data, output_file):
-    api = CollegeFootballAPI();
+    api = CollegeFootballAPI()
     conferences = api.get_conferences()
     conference_lookups = {}
     for conference in conferences:

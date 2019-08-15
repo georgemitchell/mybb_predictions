@@ -133,10 +133,10 @@ if($mybb->get_input('action') == 'predictions_update_actual') {
 
 // Retreive eligible games
 $query = $db->query("
-    SELECT g.game_id, a.name as away_name, h.name as home_name, g.game_time, g.away_score, g.home_score
+    SELECT g.game_id, a.school as away_school, h.school as home_school, g.game_time, g.away_score, g.home_score
     FROM ".TABLE_PREFIX."predictions_game g
-    INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-    INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+    INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+    INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
     WHERE g.thread_id IS NOT NULL AND g.season=2019
     ORDER BY g.game_time ASC
 ");
@@ -155,11 +155,11 @@ $overall_standings_link = "";
 if($game_id != "") {
     $overall_standings_link = "<a href=\"{$mybb->settings['bburl']}/predictions.php\" class=\"button\">See Overall Standings</a>";
     $query = $db->query("
-        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_team_id, g.home_score as home_actual, g.away_score as away_actual
+        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_school, g.home_score as home_actual, g.away_score as away_actual
         FROM ".TABLE_PREFIX."predictions_prediction p
         INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
-        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.team_id=g.away_team_id)
-        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.team_id=g.home_team_id)
+        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
         INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
         WHERE g.game_id=".$game_id."
         ORDER BY p.points desc, p.timestamp
@@ -168,7 +168,7 @@ if($game_id != "") {
     $home_team = 'Home';
     $away_team = 'Away';
     $predictions_predictions_results = "";
-    $stanford_id = 151;
+    $stanford_id = "Stanford";
     $predictions_results_columns = null;
     while($row = $db->fetch_array($query)) {
         $home_team = $row['home_team'];
@@ -176,7 +176,7 @@ if($game_id != "") {
         if($first) {
             $home_actual = $row['home_actual'];
             $away_actual = $row['away_actual'];
-            $team_is_home = $row['home_team_id'] == $stanford_id;
+            $team_is_home = $row['home_school'] == $stanford_id;
             if($mybb->user['ismoderator']) {
                 eval('$predictions_update_actual_score = "' . $templates->get('predictions_update_actual_score') . '";');
             }

@@ -1175,7 +1175,7 @@ function predictions_prediction_box()
 		");
 		$predictions_game_options = "";
 		while($row = $db->fetch_array($query)) {
-			$predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_name"].' at '.$row["home_name"].'</option>';
+			$predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_school"].' at '.$row["home_school"].'</option>';
 		}
 
 		if($predictions_game_options == "") {
@@ -1349,7 +1349,7 @@ function predictions_thread_game()
 		}
 		
 		// Currently hardcoding stanford as the "main" team
-		$stanford_id = 151;
+		$stanford_id = "Stanford";
 
 		// Get the current logged in user_id (0 if anonymous)
 		$user_id = $mybb->user['uid'];
@@ -1569,7 +1569,7 @@ function predictions_ajax_action()
 				$db->update_query('predictions_prediction', $args, "prediction_id=".$existing_prediction_id);
 			}
 		
-			$stanford_id = 151;
+			$stanford_id = "Stanford";
 			$stats = predictions_calculate_game_stats($db, $args['user_id'], $args['game_id'], $stanford_id == $game["home_id"]);
 	
 			if($stats['count'] == 1) {
