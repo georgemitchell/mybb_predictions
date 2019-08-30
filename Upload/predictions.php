@@ -105,9 +105,9 @@ function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_wi
         } else if($score->num_exact == 1) {
             $score->points += 3;
         }
-        if(($score->picked_winner && !$did_stanford_win) || (!$score->picked_winner && $did_stanford_win)) {
+        /*if(($score->picked_winner && !$did_stanford_win) || (!$score->picked_winner && $did_stanford_win)) {
             $score->points -= 10;
-        }
+        }*/
         $db->update_query("predictions_prediction", array("points" => $score->points), "prediction_id=".$score->prediction_id);
     }
     
@@ -143,9 +143,9 @@ $query = $db->query("
 $predictions_game_options = "";
 while($row = $db->fetch_array($query)) {
     if($row['game_id'] == $game_id) {
-        $predictions_game_options .= '<option value="'.$row["game_id"].'" selected>'.$row["away_name"].' at '.$row["home_name"].'</option>';
+        $predictions_game_options .= '<option value="'.$row["game_id"].'" selected>'.$row["away_school"].' at '.$row["home_school"].'</option>';
     } else {
-        $predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_name"].' at '.$row["home_name"].'</option>';
+        $predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_school"].' at '.$row["home_school"].'</option>';
     }
 }
 

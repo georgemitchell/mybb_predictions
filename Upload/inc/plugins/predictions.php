@@ -170,7 +170,7 @@ ADD_GAME;
 		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
 		{\$game['home_team']}
 		{\$game['home_score']}
-		<a href="{\$mybb->settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a>
+		<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
 	</div>
 LATEST_GAME;
 
@@ -192,8 +192,8 @@ LATEST_GAME;
 				</div>
 			</div>
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{$game['away_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{$game['away_actual']}</span>
+				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['away_actual']}</span>
 			</div>
 		</div>
 	</div>
@@ -209,8 +209,8 @@ LATEST_GAME;
 	<div class="col-md-4">
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-3 text-center">
-				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{$game['home_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{$game['home_actual']}</span>
+				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span><br />
+				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['home_actual']}</span>
 			</div>
 			<div class="col-md-9">
 				<div class="row">
@@ -246,7 +246,7 @@ THREAD_GAME;
 
 	$thread_game_stats = <<<THREAD_GAME_STATS
 	<div id="predictions_stats_panel">
-		<div class="row">
+		<!--<div class="row">
 			<div class="col-md-6">{\$lang->predictions_took_the_over}:</div>
 			<div class="col-md-6" id="predictions_stats_over">
 				{\$stats['over']['user']} ({\$stats['over']['away']} - {\$stats['over']['home']})
@@ -257,7 +257,7 @@ THREAD_GAME;
 			<div class="col-md-6" id="predictions_stats_under">
 				{\$stats['under']['user']} ({\$stats['under']['away']} - {\$stats['under']['home']})
 			</div>
-		</div>
+		</div>-->
 		<div class="row">
 			<div class="col-md-6">{\$lang->predictions_redhot}:</div>
 			<div class="col-md-6" id="predictions_stats_redhot">
@@ -319,6 +319,20 @@ THREAD_GAME_FORM;
 PREDICTION_BOX;
 
 	$predictions_index = <<<PREDICTIONS_INDEX
+	<div class="tborder">
+		<div class="thead">Game Rules</div>
+		<div class="trow1 rowbit">
+			<ol>
+				<li>Each entry is given an error score equal to the sum of the [difference between the Stanford prediction and the actual Stanford score] and the [difference between the opponent prediction and the actual opponent score].</li>
+				<li>Each entry that correctly picked the winner is given 1 point for every entrant that (1) also correctly picked the winner and had a higher error score than theirs, and (2) every entrant that incorrectly picked the winner.</li>
+				<li>Each entry that incorrectly picked the winner is given 1 point for every entrant also incorrectly picked the winner and had a higher error score than theirs.</li>
+				<li>Each entry that nails the final score gets a 10 point bonus.</li>
+				<li>Each entry that does not nail the score but correctly predicts either Stanford's or the opponents score gets a 3 point bonus.</li>
+				<li>The predictions widget will cease accepting entries 5 minutes prior to the official kick-off time of each game.</li>
+				<li>The winners will be the players with the highest scores after the last game is played, including bowl or playoff games.</li>
+			</ol>
+		</div>
+	</div>
 	<form action="predictions.php">
 		<input type="hidden" name="action" value="predictions_select_game" />
 		<div class="tborder">
@@ -932,6 +946,7 @@ function predictions_set_latest_game() {
 		ORDER BY g.game_time ASC
 		LIMIT 1
 	");
+	
 	$row = $db->fetch_array($query);
 	if(is_null($row)) {
 		return;
@@ -1000,6 +1015,7 @@ function predictions_thread_show_score()
 		WHERE thread_id in (" . $tids . ")
 		ORDER BY thread_id, score desc
 		");
+		
 		global $thread_games;
 		$thread_games = array();
 		while($row = $db->fetch_array($query)) {
@@ -1041,7 +1057,7 @@ function predictions_thread_show_score()
  */
 function predictions_forum_show_score()
 {
-	global $settings, $foruminfo, $db, $latest_game;
+	global $mybb, $settings, $foruminfo, $db, $latest_game;
 
 	// Only run this function is the setting is set to yes
 	if($settings['predictions_latestgame'] == 0)
@@ -1175,7 +1191,7 @@ function predictions_prediction_box()
 		");
 		$predictions_game_options = "";
 		while($row = $db->fetch_array($query)) {
-			$predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_school"].' at '.$row["home_school"].'</option>';
+			$predictions_game_options .= '<option value="'.$row["game_id"].'">'.$row["away_name"].' at '.$row["home_name"].'</option>';
 		}
 
 		if($predictions_game_options == "") {
@@ -1281,6 +1297,8 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 			array_push($nicknames, array(
 				"home" => $prediction['home_nickname'],
 				"away" => $prediction['away_nickname'],
+				"home_score" => $prediction["home_score"],
+				"away_score" => $prediction["away_score"],
 				"user" => $prediction['username']
 			));
 		}
@@ -1388,9 +1406,9 @@ function predictions_thread_game()
 
 		}
 
-		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": ""}';
+		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": "", "home_score": "'. $game["home_score"] . '", "away_score": "'. $game["away_score"] . '"}';
 		foreach($stats["nicknames"] as &$nickname) {
-			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '"}';
+			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '", "home_score": "'. $nickname["home_score"] . '", "away_score": "'. $nickname["away_score"] . '"}';
 		}
 		$nicknames_js .= '];';
 
@@ -1545,8 +1563,7 @@ function predictions_ajax_action()
 		$existing_prediction_id = $mybb->get_input("prediction_id");
 		
 		// Update or create template group:
-		$query = $db->query("select case when game_time > NOW() then true else false end as is_eligible from mybb_predictions_game where game_id=".$mybb->get_input('game_id'));
-
+		$query = $db->query("select case when game_time > NOW() then true else false end as is_eligible from ".TABLE_PREFIX."predictions_game where game_id=".$mybb->get_input('game_id'));
 		if($db->fetch_field($query, 'is_eligible'))
 		{
 			$args = array(
