@@ -54,8 +54,18 @@ class Score {
             }
         } else if($this->picked_winner) {
             return -1;
-        } else {
+        } else if($other->picked_winner) {
             return 1;
+        } else {
+            if($this->delta == $other->delta) {
+                if($this->num_exact == $other->num_exact) {
+                    return 0;
+                } else {
+                    return ($this->num_exact > $other->num_exact) ? -1 : 1;
+                }
+            } else {
+                return ($this->delta < $other->delta) ? -1 : 1;
+            }
         }
     }
 }
@@ -164,6 +174,7 @@ if($game_id != "") {
         WHERE g.game_id=".$game_id."
         ORDER BY p.points desc, p.timestamp
     ");
+   
     $first = true;
     $home_team = 'Home';
     $away_team = 'Away';
@@ -171,6 +182,7 @@ if($game_id != "") {
     $stanford_id = "Stanford";
     $predictions_results_columns = null;
     while($row = $db->fetch_array($query)) {
+       
         $home_team = $row['home_team'];
         $away_team = $row['away_team'];
         if($first) {
