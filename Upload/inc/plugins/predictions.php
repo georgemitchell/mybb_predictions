@@ -141,8 +141,8 @@ ADD_TEAM;
 						<option value="2016">2016</option>
 						<option value="2017">2017</option>
 						<option value="2018">2018</option>
-						<option value="2019" selected>2019</option>
-						<option value="2020">2020</option>
+						<option value="2019">2019</option>
+						<option value="2020" selected>2020</option>
 					</select>
 				</div>
 			</div>
@@ -160,19 +160,36 @@ ADD_TEAM;
 		</div>
 	</form>
 ADD_GAME;
+	if(array_key_exists("winner", $game)) {
+		// This game is in the past so we should show the winner
+		$latest_game = <<<LATEST_GAME_WINNER
+		<div class="row">
+			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
+			{\$game['away_team']}
+			{\$game['away_score']}
+			vs.
+			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
+			{\$game['home_team']}
+			{\$game['home_score']}
+			<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">Congratulations {\$game['winner']}</a> | <a href="{\$settings['bburl']}/predictions.php">Results</a>
+		</div>
+LATEST_GAME_WINNER;
 
-	$latest_game = <<<LATEST_GAME
-	<div class="row">
-		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
-		{\$game['away_team']}
-		{\$game['away_score']}
-		vs.
-		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
-		{\$game['home_team']}
-		{\$game['home_score']}
-		<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
-	</div>
+	} else {
+		$latest_game = <<<LATEST_GAME
+		<div class="row">
+			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
+			{\$game['away_team']}
+			{\$game['away_score']}
+			vs.
+			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
+			{\$game['home_team']}
+			{\$game['home_score']}
+			<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
+		</div>
 LATEST_GAME;
+	}
+	
 
 	$thread_game = <<<THREAD_GAME
 
