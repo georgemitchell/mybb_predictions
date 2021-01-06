@@ -25,3 +25,6 @@ $l['predictions_redhot'] = 'Red hot';
 $l['predictions_shame'] = 'Shame!';
 $l['predictions_see_game_results'] = 'See game results';
 $l['predictions_update_actual_score'] = 'Update actual results';
+$l['predictions_update_timing'] = 'Update timing';
+$l['predictions_game_time'] = 'Game time';
+$l['predictions_prediction_time'] = 'Prediction time';

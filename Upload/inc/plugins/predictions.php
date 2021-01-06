@@ -160,35 +160,36 @@ ADD_TEAM;
 		</div>
 	</form>
 ADD_GAME;
-	if(array_key_exists("winner", $game)) {
-		// This game is in the past so we should show the winner
-		$latest_game = <<<LATEST_GAME_WINNER
-		<div class="row">
-			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
-			{\$game['away_team']}
-			{\$game['away_score']}
-			vs.
-			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
-			{\$game['home_team']}
-			{\$game['home_score']}
-			<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">Congratulations {\$game['winner']}</a> | <a href="{\$settings['bburl']}/predictions.php">Results</a>
-		</div>
-LATEST_GAME_WINNER;
-
-	} else {
-		$latest_game = <<<LATEST_GAME
-		<div class="row">
-			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
-			{\$game['away_team']}
-			{\$game['away_score']}
-			vs.
-			<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
-			{\$game['home_team']}
-			{\$game['home_score']}
-			<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
-		</div>
+	$latest_game = <<<LATEST_GAME
+	<div class="row">
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
+		{\$game['away_team']}
+		{\$game['away_score']}
+		vs.
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
+		{\$game['home_team']}
+		{\$game['home_score']}
+		<a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
+	</div>
 LATEST_GAME;
-	}
+
+	$previous_winner= <<<PREVIOUS_WINNER
+	<div class="row">
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['away_logo']}" />
+		{\$game['away_team']}
+		{\$game['away_score']}
+		vs.
+		<img style="width:24px;height:24px" src="{\$mybb->asset_url}{\$game['home_logo']}" />
+		{\$game['home_team']}
+		{\$game['home_score']}
+		Congratulations <b>{\$game['winner']}</b> (Best of <a href="{\$settings['bburl']}/showthread.php?tid={\$game['thread_id']}">{\$game['num_predictions']} Predictions)</a> | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
+	</div>
+PREVIOUS_WINNER;
+
+$default_forum_message= <<<DEFAULT_FORUM_MESSAGE
+	{\$message} | <a href="{\$settings['bburl']}/predictions.php">Rules &amp; Results</a>
+DEFAULT_FORUM_MESSAGE;
+
 	
 
 	$thread_game = <<<THREAD_GAME
@@ -357,13 +358,15 @@ PREDICTION_BOX;
 			<div class="trow1 rowbit">
 				<div class="formbit_label col-sm-2 strong">Season:</div>
 				<div class="formbit_field col-sm-10">
-					2019
+					<select class="selectbox" name="season" value="" tabindex="1">
+						{\$predictions_season_options}
+					</select>
 				</div>
 			</div>
 			<div class="trow1 rowbit">
 				<div class="formbit_label col-sm-2 strong">Game:</div>
 				<div class="formbit_field col-sm-10">
-					<select class="selectbox" name="game_id" value="" tabindex="1">
+					<select class="selectbox" name="game_id" value="" tabindex="2">
 						{\$predictions_game_options}
 					</select>
 				</div>
@@ -373,6 +376,7 @@ PREDICTION_BOX;
 			</div>
 		</div>
 	</form>
+	{\$predictions_update_timing}
 	{\$predictions_update_actual_score}
 	<br />
 	{\$predictions_game_results}
@@ -412,7 +416,7 @@ $update_actual_score = <<<UPDATE_ACTUAL
 		<input type="hidden" name="game_id" value="{\$game_id}" />
 		<input type="hidden" name="team_is_home" value={\$team_is_home} />
 		<div class="tborder">
-			<div class="thead">Update Actual Score</div>
+			<div class="thead">{\$lang->predictions_update_actual_score}</div>
 			<div class="trow1 rowbit">
 				<div class="formbit_label col-sm-2 strong">{\$away_team}:</div>
 				<div class="formbit_field col-sm-10">
@@ -432,10 +436,40 @@ $update_actual_score = <<<UPDATE_ACTUAL
 	</form>
 UPDATE_ACTUAL;
 
+$update_timing = <<<UPDATE_TIMING
+	<br />
+	<form action="{\$mybb->settings['bburl']}/predictions.php" method="POST">
+		<input type="hidden" name="action" value="predictions_update_timing" />
+		<input type="hidden" name="csrf_token" value="{\$mybb->post_code}" />
+		<input type="hidden" name="game_id" value="{\$game_id}" />
+		<input type="hidden" name="team_is_home" value={\$team_is_home} />
+		<div class="tborder">
+			<div class="thead">{\$lang->predictions_update_timing}</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Prediction Time:</div>
+				<div class="formbit_field col-sm-10">
+				<input type="text" class="textbox" name="prediction_time" size="20" value="{\$prediction_time}" tabindex="3" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<div class="formbit_label col-sm-2 strong">Game Time</div>
+				<div class="formbit_field col-sm-10">
+				<input type="text" class="textbox" name="game_time" size="20" value="{\$game_time}" tabindex="4" />
+				</div>
+			</div>
+			<div class="trow1 rowbit">
+				<input type="submit" name="submit" class="button" value="{\$lang->predictions_update_timing}" />
+			</div>
+		</div>
+	</form>
+UPDATE_TIMING;
+
 	// Add a new template (hello_index) to our global templates (sid = -1)
 	$templatearray = array(
 	'prediction_box' => $prediction_box,
 	'latest_game' => $latest_game,
+	'previous_winner' => $previous_winner,
+	'default_forum_message' => $default_forum_message,
 	'thread_game' => $thread_game,
 	'thread_game_stats' => $thread_game_stats,
 	'thread_game_form' => $thread_game_form,
@@ -445,7 +479,8 @@ UPDATE_ACTUAL;
 	'index' => $predictions_index,
 	'list' => $predictions_list,
 	'row' => $predictions_row,
-	'update_actual_score' => $update_actual_score
+	'update_actual_score' => $update_actual_score,
+	'update_timing' => $update_timing
 	);
 
 	$group = array(
@@ -584,6 +619,15 @@ UPDATE_ACTUAL;
 	'latestgame'	=> array(
 		'optionscode'	=> 'yesno',
 		'value'			=> 1
+	),
+	'season' => array(
+		'optionscode'   => 'numeric
+min=2018',
+		'value'			=> 2021
+	),
+	'forummessage' => array(
+		'optionscode'	=> 'text',
+		'value' => ""
 	));
 
 	$disporder = 0;
@@ -950,30 +994,80 @@ function predictions_settings()
 }
 
 function predictions_set_latest_game() {
-	global $db, $latest_game;
+	global $db, $settings, $forum_message;
 
-	$query = $db->query("
-		SELECT a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, ROUND(AVG(p.away_score)) as away_score, ROUND(AVG(p.home_score)) as home_score, COUNT(p.prediction_id) as num_predictions, g.thread_id
-		FROM ".TABLE_PREFIX."predictions_game g
-		INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
-		INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
-		LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
-		WHERE g.prediction_time < NOW() and g.game_time > NOW() and g.thread_id IS NOT NULL
-		GROUP BY a.abbreviation, a.logo, h.abbreviation, h.logo, g.game_time, g.thread_id
-		ORDER BY g.game_time ASC
-		LIMIT 1
-	");
+	if($settings['predictions_forummessage'] != "") {
+		$forum_message = [
+			"mode" => "message",
+			"message" => $settings['predictions_forummessage']
+		];
+	} else {
+		$query = $db->query("
+			SELECT a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, ROUND(AVG(p.away_score)) as away_score, ROUND(AVG(p.home_score)) as home_score, COUNT(p.prediction_id) as num_predictions, g.thread_id
+			FROM ".TABLE_PREFIX."predictions_game g
+			INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+			INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
+			LEFT OUTER JOIN ".TABLE_PREFIX."predictions_prediction p ON (p.game_id=g.game_id)
+			WHERE g.prediction_time < NOW() and g.game_time > NOW() and g.thread_id IS NOT NULL
+			GROUP BY a.abbreviation, a.logo, h.abbreviation, h.logo, g.game_time, g.thread_id
+			ORDER BY g.game_time ASC
+			LIMIT 1
+		");
+		
+		$row = $db->fetch_array($query);
+		if(is_null($row)) {
+			// There is no currently "active" game, show the previous game's winner(s)
+			$query = $db->query("SELECT game_id from ".TABLE_PREFIX."predictions_game WHERE season={$settings["predictions_season"]} AND game_time < NOW() AND thread_id is NOT NULL AND home_score is NOT NULL ORDER by game_time DESC LIMIT 1");
+			$row = $db->fetch_array($query);
+			if(is_null($row)) {
+				$forum_message = [
+					"mode" => "message",
+					"message" => "Unable to find previous game's winner"
+				];
+			} else {
+				$game_id = $row["game_id"];
+				$sql_string = "
+					select g.thread_id, g.away_score, g.home_score, a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, max(p.points) as score, u.username as winner
+					from ".TABLE_PREFIX."predictions_prediction p
+					inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is not null
+					inner join ".TABLE_PREFIX."users u on p.user_id = u.uid
+					inner join ".TABLE_PREFIX."predictions_team a on g.away_school = a.school
+					inner join ".TABLE_PREFIX."predictions_team h on g.home_school = h.school
+					WHERE g.game_id = {$game_id}
+					group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username
+				";
+				$query = $db->query($sql_string);
+				$thread_score = null;
+				while($row = $db->fetch_array($query)) {
+					if(is_null($thread_score)) {
+						$thread_score= new ThreadScore($row);
+					} else {
+						$thread_score->add_score($row);
+					}
+				}
+				$game = $thread_score->get_winners_data();
+				console_log($game["winner"]);
+				$forum_message = [
+					"mode" => "previous_winnner",
+					"game" => $game
+				];
+			}
+		} else {
+			// Show the active Game
+			$game = $row;
+			if (is_null($game['home_score'])) {
+				$game["home_score"] = "N/A";
+				$game["away_score"] = "N/A";
+			}
+			$forum_message = [
+				"mode" => "latest_game",
+				"game" => $game
+			];
+
+		}
+	}
+
 	
-	$row = $db->fetch_array($query);
-	if(is_null($row)) {
-		return;
-	}
-
-	$latest_game = $row;
-	if (is_null($latest_game['home_score'])) {
-		$latest_game["home_score"] = "?";
-		$latest_game["away_score"] = "?";
-	}
 }
 
 class ThreadScore {
@@ -983,6 +1077,8 @@ class ThreadScore {
 	var $home_score;
 	var $away_team;
 	var $home_team;
+	var $away_logo;
+	var $home_logo;
 	var $winners;
 	var $winning_points;
 
@@ -993,27 +1089,60 @@ class ThreadScore {
 		$this->home_score = $row['home_score'];
 		$this->away_team = $row['away_team'];
 		$this->home_team = $row['home_team'];
+		$this->away_logo = $row['away_logo'];
+		$this->home_logo = $row['home_logo'];
 		$this->winners = array();
 		$this->winning_points = 0;
+		$this->num_predictions = 0;
     }
 
     function add_score($score) {
+		$this->num_predictions++;
 		$int_score = (int)$score['score'];
 		if ($int_score >= $this->winning_points) {
 			array_push($this->winners, $score['winner']);
 			$this->winning_points = $int_score;
 		}
-    }
+	}
+	
+	function get_winners_data() {
+		if (count($this->winners) > 1) {
+			$first = true;
+			$winner_string = "";
+			foreach($this->winners as $winner) {
+				if($first) {
+					$winner_string .= $winner;
+					$first = false;
+				} else {
+					$winner_string .= ", " . $winner;
+				}
+			}
+		} else if (count($this->winners) > 0) {
+			$winner_string = $this->winners[0];
+		}
+		$data = [
+			"away_team" => $this->away_team,
+			"away_logo" => $this->away_logo,
+			"home_team" => $this->home_team,
+			"home_logo" => $this->home_logo,
+			"away_score" => $this->away_score,
+			"home_score" => $this->home_score,
+			"num_predictions" => $this->num_predictions,
+			"thread_id" => $this->prediction_id,
+			"winner" => $winner_string
+		];
+		return $data;
+	}
 }
 
 function predictions_thread_show_score()
 {
-	global $thread, $latest_game, $tids, $db;
+	global $thread, $tids, $db;
 
 	global $thread_games;
 	
 	if(!isset($thread_games)) {
-		$query = $db->query("
+		$sql_string = "
 		select * from(
 			select g.thread_id, g.game_id, round(avg(p.away_score)) as away_score, a.abbreviation as away_team, round(avg(p.home_score)) as home_score, h.abbreviation as home_team, null as score, null as winner
 			from ".TABLE_PREFIX."predictions_prediction p
@@ -1031,8 +1160,8 @@ function predictions_thread_show_score()
 			group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username) as raw
 		WHERE thread_id in (" . $tids . ")
 		ORDER BY thread_id, score desc
-		");
-		
+		";
+		$query = $db->query($sql_string);
 		global $thread_games;
 		$thread_games = array();
 		while($row = $db->fetch_array($query)) {
@@ -1074,7 +1203,7 @@ function predictions_thread_show_score()
  */
 function predictions_forum_show_score()
 {
-	global $mybb, $settings, $foruminfo, $db, $latest_game;
+	global $mybb, $settings, $foruminfo, $db, $forum_message;
 
 	// Only run this function is the setting is set to yes
 	if($settings['predictions_latestgame'] == 0)
@@ -1096,8 +1225,18 @@ function predictions_forum_show_score()
 		$lang->load('predictions');
 	}
 
-	$game = $latest_game;
-	$predictions_latest_game = eval($templates->render('predictions_latest_game'));
+	if($forum_message["mode"] == "message") {
+		$message = $forum_message["message"];
+		$predictions_latest_game = eval($templates->render('predictions_default_forum_message'));
+	} else if($forum_message["mode"] == "previous_winnner") {
+		$game = $forum_message["game"];
+		$predictions_latest_game = eval($templates->render('predictions_previous_winner'));
+	} else {
+		$game = $forum_message["game"];
+		$predictions_latest_game = eval($templates->render('predictions_latest_game'));
+	}
+	
+	
 
 }
 

@@ -23,5 +23,11 @@ $l['setting_predictions_latestgame_desc'] = 'If there is an eligible game, setti
 $l['setting_predictions_enablegame'] = 'Show game prediction results on thread page';
 $l['setting_predictions_enablegame_desc'] = 'If a thread has an associated game, setting this value to yes will show it';
 
+$l['setting_predictions_season'] = 'The active season';
+$l['setting_predictions_season_desc'] = 'Use games from this year (bowl games that occur in January should be included in the previous year)';
+
+$l['setting_predictions_forummessage'] = 'Forum message';
+$l['setting_predictions_forummessage_desc'] = 'This message will be shown at the top of the forum (leave blank to override with latest game info)';
+
 $l['predictions_uninstall'] = 'Predictions Uninstallation';
 $l['predictions_uninstall_message'] = 'Do you wish to drop all prediction data from the database?';

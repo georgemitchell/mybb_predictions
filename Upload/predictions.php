@@ -126,6 +126,10 @@ function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_wi
 add_breadcrumb('Predictions', "predictions.php");
 
 $game_id=$mybb->get_input('game_id');
+$season=$mybb->get_input('season');
+if($season == "") {
+    $season = $mybb->settings['predictions_season'];
+}
 
 if($mybb->get_input('action') == 'predictions_update_actual') {
     if($mybb->request_method == 'post') {
@@ -140,16 +144,52 @@ if($mybb->get_input('action') == 'predictions_update_actual') {
         calculate_points($game_id, $args['away_score'], $args['home_score'], $did_stanford_win);
     }
 }
+else if($mybb->get_input('action') == 'predictions_update_timing') {
+    if($mybb->request_method == 'post') {
+        verify_post_check($mybb->get_input('csrf_token'));
+        $args = array(
+			'game_id' => $game_id,
+			'prediction_time' => $mybb->get_input('prediction_time'),
+			'game_time' => $mybb->get_input('game_time')
+        );
+        $db->update_query('predictions_game', $args, "game_id=".$game_id);
+    }
+}
+
+// Retreive available seasons
+$query = $db->query("SELECT DISTINCT season from cardbd_predictions_game order by season ASC");
+
+$predictions_season_options = "";
+while($row = $db->fetch_array($query)) {
+    if($row['season'] == $season) {
+        $predictions_season_options .= '<option value="'.$row["season"].'" selected>'.$row["season"].'</option>';
+    } else {
+        $predictions_season_options .= '<option value="'.$row["season"].'">'.$row["season"].'</option>';
+    }
+}
 
 // Retreive eligible games
-$query = $db->query("
+$query = null;
+if($mybb->user['ismoderator']) {
+    $query = $db->query("
     SELECT g.game_id, a.school as away_school, h.school as home_school, g.game_time, g.away_score, g.home_score
-    FROM ".TABLE_PREFIX."predictions_game g
-    INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
-    INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
-    WHERE g.thread_id IS NOT NULL AND g.season=2020
-    ORDER BY g.game_time ASC
-");
+        FROM ".TABLE_PREFIX."predictions_game g
+        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
+        WHERE g.season={$season}
+        ORDER BY g.game_time ASC
+    ");
+} else {
+    $query = $db->query("
+        SELECT g.game_id, a.school as away_school, h.school as home_school, g.game_time, g.away_score, g.home_score
+        FROM ".TABLE_PREFIX."predictions_game g
+        INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
+        INNER JOIN ".TABLE_PREFIX."predictions_team h ON (h.school=g.home_school)
+        WHERE g.thread_id IS NOT NULL AND g.season={$season}
+        ORDER BY g.game_time ASC
+    ");
+}
+
 $predictions_game_options = "";
 while($row = $db->fetch_array($query)) {
     if($row['game_id'] == $game_id) {
@@ -165,7 +205,7 @@ $overall_standings_link = "";
 if($game_id != "") {
     $overall_standings_link = "<a href=\"{$mybb->settings['bburl']}/predictions.php\" class=\"button\">See Overall Standings</a>";
     $query = $db->query("
-        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_school, g.home_score as home_actual, g.away_score as away_actual
+        SELECT u.username, p.timestamp, p.points, p.away_score, p.home_score, p.away_nickname, p.home_nickname, a.abbreviation as away_team, h.abbreviation as home_team, g.home_school, g.home_score as home_actual, g.away_score as away_actual, g.prediction_time, g.game_time
         FROM ".TABLE_PREFIX."predictions_prediction p
         INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
         INNER JOIN ".TABLE_PREFIX."predictions_team a ON (a.school=g.away_school)
@@ -188,9 +228,12 @@ if($game_id != "") {
         if($first) {
             $home_actual = $row['home_actual'];
             $away_actual = $row['away_actual'];
+            $prediction_time = $row['prediction_time'];
+            $game_time = $row['game_time'];
             $team_is_home = $row['home_school'] == $stanford_id;
             if($mybb->user['ismoderator']) {
                 eval('$predictions_update_actual_score = "' . $templates->get('predictions_update_actual_score') . '";');
+                eval('$predictions_update_timing = "' . $templates->get('predictions_update_timing') . '";');
             }
             $first = false;
         }
@@ -223,7 +266,7 @@ if($game_id != "") {
         FROM ".TABLE_PREFIX."predictions_prediction p
         INNER JOIN ".TABLE_PREFIX."predictions_game g ON p.game_id = g.game_id
         INNER JOIN ".TABLE_PREFIX."users u ON (p.user_id = u.uid)
-        WHERE g.season=2020
+        WHERE g.season={$season}
         GROUP BY username
         ORDER BY points desc, num_games desc, username
     ");
