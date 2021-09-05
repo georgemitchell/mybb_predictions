@@ -11,7 +11,7 @@ def convert_time(time_str):
     return eastern
 
 if __name__ == "__main__":
-    year = 2020
+    year = 2021
     team = "Stanford"
     season_type = "regular"
     prefix = "cardbd"

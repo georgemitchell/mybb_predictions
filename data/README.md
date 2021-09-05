@@ -21,7 +21,10 @@ In order to run the scripts, you need to install pipenv
 ### create python shell
 `pipenv shell`
 
-You're now ready to run the scripts
+### Create config with API key
+You'll need to go to [College Football Data API](https://api.collegefootballdata.com) and sign up for a key -- it's free!  Make a copy of the `config.default.py` and name it: `config.py`.  Replace the `stats_key` value for the one you created.
+
+You're now ready to run the scripts.  
 
 ## Initial data
 We generate the initial set of conference and team data using the `get_conferences_and_teams.py` script.  This will update the `../Upload/admin/modules/predictions/mysql_db_inserts.php`.  This script will populate the appropriate tables with the conference and team data when the mybb admin user installs the plugin.
