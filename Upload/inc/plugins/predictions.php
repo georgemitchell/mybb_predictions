@@ -1017,7 +1017,14 @@ function predictions_set_latest_game() {
 		$row = $db->fetch_array($query);
 		if(is_null($row)) {
 			// There is no currently "active" game, show the previous game's winner(s)
-			$query = $db->query("SELECT game_id from ".TABLE_PREFIX."predictions_game WHERE season={$settings["predictions_season"]} AND game_time < NOW() AND thread_id is NOT NULL AND home_score is NOT NULL ORDER by game_time DESC LIMIT 1");
+			$latest_sql_string = "
+					select g.game_id, g.away_score, g.home_score, a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo
+					FROM ".TABLE_PREFIX."predictions_game g 
+					inner join ".TABLE_PREFIX."predictions_team a on g.away_school = a.school
+					inner join ".TABLE_PREFIX."predictions_team h on g.home_school = h.school
+					WHERE season={$settings["predictions_season"]} AND game_time < NOW() AND thread_id is NOT NULL AND home_score is NOT NULL ORDER by game_time DESC LIMIT 1
+				";
+			$query = $db->query($latest_sql_string);
 			$row = $db->fetch_array($query);
 			if(is_null($row)) {
 				$forum_message = [
@@ -1026,27 +1033,20 @@ function predictions_set_latest_game() {
 				];
 			} else {
 				$game_id = $row["game_id"];
+				$thread_score = new ThreadScore($row);
 				$sql_string = "
-					select g.thread_id, g.away_score, g.home_score, a.abbreviation as away_team, a.logo as away_logo, h.abbreviation as home_team, h.logo as home_logo, max(p.points) as score, u.username as winner
+					select g.thread_id, p.points as score, u.username as winner
 					from ".TABLE_PREFIX."predictions_prediction p
 					inner join ".TABLE_PREFIX."predictions_game g on g.game_id = p.game_id and p.points is not null
 					inner join ".TABLE_PREFIX."users u on p.user_id = u.uid
-					inner join ".TABLE_PREFIX."predictions_team a on g.away_school = a.school
-					inner join ".TABLE_PREFIX."predictions_team h on g.home_school = h.school
 					WHERE g.game_id = {$game_id}
-					group by g.thread_id, g.game_id, g.away_score, g.home_score, a.abbreviation, h.abbreviation, u.username
+					ORDER BY p.points DESC
 				";
 				$query = $db->query($sql_string);
-				$thread_score = null;
 				while($row = $db->fetch_array($query)) {
-					if(is_null($thread_score)) {
-						$thread_score= new ThreadScore($row);
-					} else {
-						$thread_score->add_score($row);
-					}
+					$thread_score->add_score($row);
 				}
 				$game = $thread_score->get_winners_data();
-				console_log($game["winner"]);
 				$forum_message = [
 					"mode" => "previous_winnner",
 					"game" => $game
