@@ -79,6 +79,7 @@ function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_wi
 
     $scores = array();
     $query = $db->simple_select("predictions_prediction", "prediction_id, game_id, home_score, away_score", "game_id=".$game_id);
+    $winner_bonus = 0;
     while($prediction = $db->fetch_array($query)) {
         $score = new Score(
             $prediction["prediction_id"],
@@ -88,6 +89,9 @@ function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_wi
             $away_actual
         );
         array_push($scores, $score);
+        if(!$score->picked_winner) {
+            $winner_bonus++;
+        }
     }
 
     usort($scores, "score_compare");
@@ -105,6 +109,9 @@ function calculate_points($game_id, $away_actual, $home_actual, $did_stanford_wi
             }
         }
         $score->points = $current_points;
+        if($score->picked_winner) {
+            $score->points += $winner_bonus;
+        }
         $previous = $score;
     }
 
