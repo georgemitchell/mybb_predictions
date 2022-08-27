@@ -211,7 +211,7 @@ DEFAULT_FORUM_MESSAGE;
 			</div>
 			<div class="col-md-3 text-center">
 				<span id="predictions_thread_game_away_score" style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['away_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['away_actual']}</span>
+				<span class="team_name" data="away_score" style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['away_actual']}</span>
 			</div>
 		</div>
 	</div>
@@ -228,7 +228,7 @@ DEFAULT_FORUM_MESSAGE;
 		<div class="row" style="display: flex;justify-content:  center;align-items: center;">
 			<div class="col-md-3 text-center">
 				<span id="predictions_thread_game_home_score"  style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 42px">{\$game['home_score']}</span><br />
-				<span style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['home_actual']}</span>
+				<span class="team_name" data="home_score" style="color: #999999; font-family: Arial, Helvetica, sans-serif; font-size: 24px">{\$game['home_actual']}</span>
 			</div>
 			<div class="col-md-9">
 				<div class="row">
@@ -1449,15 +1449,13 @@ function predictions_calculate_game_stats($db, $uid, $game_id, $is_at_home) {
 				"away" => $prediction['away_score']
 			);
 		}
-		if($prediction['home_nickname'] != "") {
-			array_push($nicknames, array(
-				"home" => $prediction['home_nickname'],
-				"away" => $prediction['away_nickname'],
-				"home_score" => $prediction["home_score"],
-				"away_score" => $prediction["away_score"],
-				"user" => $prediction['username']
-			));
-		}
+		array_push($nicknames, array(
+			"home" => $prediction['home_nickname'],
+			"away" => $prediction['away_nickname'],
+			"home_score" => $prediction["home_score"],
+			"away_score" => $prediction["away_score"],
+			"user" => $prediction['username']
+		));
 		$count += 1;
 	}
 	$home_avg = "?";
@@ -1521,6 +1519,11 @@ function predictions_thread_game()
 			// if there's no game associated with this thread, we're done.
 			return;
 		}
+		if(is_null($game["away_actual"])) {
+			$game["away_actual"] = "&nbsp;";
+			$game["home_actual"] = "&nbsp;";
+		}
+		
 		
 		// Currently hardcoding stanford as the "main" team
 		$stanford_id = "Stanford";
@@ -1562,7 +1565,7 @@ function predictions_thread_game()
 
 		}
 
-		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": "", "home_score": "'. $game["home_score"] . '", "away_score": "'. $game["away_score"] . '"}';
+		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": "", "home_score": "", "away_score": ""}';
 		foreach($stats["nicknames"] as &$nickname) {
 			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '", "home_score": "'. $nickname["home_score"] . '", "away_score": "'. $nickname["away_score"] . '"}';
 		}
