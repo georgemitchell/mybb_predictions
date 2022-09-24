@@ -1564,10 +1564,9 @@ function predictions_thread_game()
 			$predictions_predict_panel = eval($templates->render('predictions_thread_game_form'));
 
 		}
-
 		$nicknames_js = 'var nicknames = [{"home": "' . $game["home_name"] . '", "away": "' . $game["away_name"] . '", "user": "", "home_score": "", "away_score": ""}';
 		foreach($stats["nicknames"] as &$nickname) {
-			$nicknames_js .= ',{"home": "' . $nickname["home"]. '", "away": "'. $nickname["away"] . '", "user": "' . $nickname["user"] . '", "home_score": "'. $nickname["home_score"] . '", "away_score": "'. $nickname["away_score"] . '"}';
+			$nicknames_js .= ',{"home": "' . str_replace('"', '\"', $nickname["home"]) . '", "away": "'. str_replace('"', '\"', $nickname["away"]) . '", "user": "' . $nickname["user"] . '", "home_score": "'. $nickname["home_score"] . '", "away_score": "'. $nickname["away_score"] . '"}';
 		}
 		$nicknames_js .= '];';
 
