@@ -262,6 +262,25 @@ DEFAULT_FORUM_MESSAGE;
 {\$predictions_predict_script}
 THREAD_GAME;
 
+	$thread_game_your_prediction = <<< THREAD_GAME_YOUR_PREDICTION
+	<div class="row">
+		&nbsp;
+	</div>
+	<div class="row">
+		<div class="thead">
+			Your prediction
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-8">{$user_away}</div>
+		<div class="col-sm-4">{$stats['user_prediction']['away_score']}</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-8">{$user_home}</div>
+		<div class="col-sm-4">{$stats['user_prediction']['home_score']}</div>
+	</div>
+THREAD_GAME_YOUR_PREDICTION;
+
 	$thread_game_stats = <<<THREAD_GAME_STATS
 	<div id="predictions_stats_panel">
 		<!--<div class="row">
@@ -288,6 +307,7 @@ THREAD_GAME;
 				{\$stats['shame']['user']} ({\$stats['shame']['away']} - {\$stats['shame']['home']})
 			</div>
 		</div>
+		{\$predictions_stats_panel_your_prediction}
 	</div>
 THREAD_GAME_STATS;
 
@@ -473,6 +493,7 @@ UPDATE_TIMING;
 	'thread_game' => $thread_game,
 	'thread_game_stats' => $thread_game_stats,
 	'thread_game_form' => $thread_game_form,
+	'thread_game_your_prediction' => $thread_game_your_prediction,
 	'toggle_button' => '<a href="javascript:predictions_toggle_panel();" class="button" id="predictions_toggle_panel_button"><span id="predictions_action_text">{$predictions_action_text}</span></a>',
 	'add_team' => $add_team,
 	'add_game' => $add_game,
@@ -1538,6 +1559,24 @@ function predictions_thread_game()
 		if($stats["count"] == 0) {
 			$predictions_stats_panel = '<div id="predictions_stats_panel"><i>Not enough predictions to show stats</i></div>';
 		} else {
+			if ($user_id != 0 && !is_null($stats["user_prediction"])) {
+				// this is not an anonymous user and the user has made a prediction.  
+				// Show what they've predicted,  See feature request:
+				// https://thecardboard.org/board/showthread.php?tid=24413
+				if (is_null($stats["user_prediction"]["away_nickname"])) {
+					$user_away = $game["away_team"];
+				} else {
+					$user_away = $game["away_team"] . " (" . $stats["user_prediction"]["away_nickname"] . ")";
+				}
+				if (is_null($stats["user_prediction"]["home_nickname"])) {
+					$user_home = $game["home_team"];
+				} else {
+					$user_home = $game["home_team"] . " (" . $stats["user_prediction"]["home_nickname"] . ")";
+				}
+				$predictions_stats_panel_your_prediction = eval($templates->render('predictions_thread_game_your_prediction'));
+			} else {
+				$predictions_stats_panel_your_prediction = "";
+			}
 			$predictions_stats_panel = eval($templates->render('predictions_thread_game_stats'));
 		}
 
