@@ -11,7 +11,7 @@ def convert_time(time_str):
     return eastern
 
 if __name__ == "__main__":
-    year = 2024
+    year = 2025
     team = "Stanford"
     season_type = "regular"
     prefix = "cardbd"
@@ -21,24 +21,25 @@ if __name__ == "__main__":
     f = open(output_filename, "w")
     games = api.get_games(team, year, season_type)
     prediction_time = datetime.now()
+    print(games)
     for game in games:
-        if game["home_points"] is None:
+        if game["homePoints"] is None:
             home_score = "NULL"
         else:
-            home_score = game["home_points"]
+            home_score = game["homePoints"]
 
-        if game["away_points"] is None:
+        if game["awayPoints"] is None:
             away_score = "NULL"
         else:
-            away_score = game["away_points"]
+            away_score = game["awayPoints"]
 
-        game_time = convert_time(game["start_date"])
+        game_time = convert_time(game["startDate"])
         f.write("INSERT INTO {prefix}_predictions_game(game_id, season, home_school, away_school, prediction_time, game_time, home_score, away_score) values ({game_id}, {season}, '{home_school}', '{away_school}', '{prediction_time}', '{game_time}', {home_score}, {away_score}) on duplicate key update game_time='{game_time}', home_score={home_score}, away_score={away_score};\n".format(
             prefix = prefix,
             game_id = game["id"],
             season = game["season"],
-            home_school = game["home_team"],
-            away_school = game["away_team"],
+            home_school = game["homeTeam"],
+            away_school = game["awayTeam"],
             prediction_time = prediction_time.strftime("%Y-%m-%d %H:%M:%S"),
             game_time = game_time.strftime("%Y-%m-%d %H:%M:%S"),
             home_score = home_score,
